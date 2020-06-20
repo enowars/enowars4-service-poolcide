@@ -34,8 +34,8 @@
 
 int assert(int condition) {
     if (!condition) {
-        printf("Assert failed :/");
-        abort();
+        printf("Assert failed :/\n");
+        exit(1);
     }
 }
 
@@ -70,9 +70,12 @@ char get_rand_alphanumberic() {
    The others are stripped. */
 char *dup_alphanumeric(char *str) {
     int i;
+    int retpos = 0;
     char *ret = calloc(1, 1024);
     for (i = 0; str[i]; i++) {
-        ret[i] = str[i];
+        if (is_alphanumeric(str[i])) {
+            ret[retpos++] = str[i];
+        }
     }
     return ret;
 }
@@ -154,10 +157,8 @@ char **parse_query(char *str) {
     return ret;
 }
 
-
-
 char **read_ini(char *filename) {
-    char **ini = calloc(sizeof(char *), 256);
+    char **ini = calloc(1, 256);
     int linec = 0;
     FILE *f = fopen(filename, "r+");
     if (!f) { PFATAL("Couldn't open ini"); }
@@ -180,36 +181,27 @@ void write_ini_val(FILE *f, char *name) {
 
 }
 
-int handle_post(char *cookie) {
+int write_sec_headers(char *nonce) {
 
-    char *line = readline(0);
-    while (line && line[0]) {
-        char **query = parse_query(line);
-
-        KV_FOREACH(query, {
-
-        });
-
-        free(query[0]);
-        free(query);
-        free(line);
-        line = readline(0);
-    }
-    return 0;
-
-}
-
-int handle_get(char *cookie) {
-
-    int cf = cookie_file(cookie);
-    readline(cf);
-    /*read_ini(USER_DIR + username);*/
+    /* TODO: CSP Nonce */
+    printf(
+        "Content-Security-Policy: script-src 'self' 'unsafe-inline';"NL
+        "X-Frame-Options: SAMEORIGIN"NL
+        "X-Xss-Protection: 1; mode=block"NL
+        "X-Content-Type-Options: nosniff"NL
+        "Referrer-Policy: no-referrer-when-downgrade"NL
+        "Feature-Policy "
+            "geolocation 'self'; midi 'self'; sync-xhr 'self'; microphone 'self'; "
+            "camera 'self'; magnetometer 'self'; gyroscope 'self'; speaker 'self'; "
+            "fullscreen *; payment 'self';"NL
+    );
 
     return 0;
-
 }
 
-#ifdef TEST
+/* run tests using
+   make CFLAGS='-DTEST_RAND'
+*/
 #if defined(TEST_RAND)
 int main() {
 
@@ -231,8 +223,18 @@ int main() {
     assert(parseme[1] == query[0][1]);
     return 0;
 }
-#endif
-#else
+#elif defined(TEST_ALPHA)
+int main() {
+    char *alpha = "FUN1";
+    char *nonalpha1 = "%%!FUN1";
+    char *nonalpha2 = "%%!";
+    char *nonalpha3 = "%%!0";
+    char *alpha1 = dup_alphanumeric(nonalpha1);
+    printf("%s: %s", nonalpha1, alpha1);
+    assert(!strncmp(alpha, alpha1));
+    free(alpha1);
+}
+#else /* No TEST */
 
 int main() {
 
@@ -247,6 +249,9 @@ int main() {
     /* Webserver name to this binary */
     char *script_name = getenv("SCRIPT_NAME");
 
+    char *nonce = rand_str(16);
+    write_sec_headers(nonce);
+
     printf("Content-Type: text/html"NL);
     if (!cookie) {
         /* A new user, welcome! :) */
@@ -259,7 +264,7 @@ int main() {
     /* header end */
     printf(NL);
 
-    printf("%s %s %s", request_method, query_string, script_name);
+    /*printf("%s %s %s", request_method, query_string, script_name);*/
 
     if (request_method && !strcmp(request_method, "GET")) {
 
@@ -271,9 +276,12 @@ int main() {
 
     } else if (request_method && !strcmp(request_method, "TEST")) {
 
+        printf("TEST"NL);
+        exit(0);
+
     } else {
 
-        printf("Unknown method %s"NL, request_method);
+        printf("Unsupported method %s"NL, request_method);
         return -1;
 
     }
@@ -285,7 +293,40 @@ int main() {
     //free(str);
     */
    free(cookie);
+   free(nonce);
 
 }
 
 #endif
+
+/* The Webserver Methods */
+
+int handle_get(char *cookie) {
+
+    /*int cf = cookie_file(cookie);*/
+    printf("test");
+    /*read_ini(USER_DIR + username);*/
+
+    return 0;
+
+}
+
+int handle_post(char *cookie) {
+
+    char *line = readline(0);
+    while (line && line[0]) {
+        char **query = parse_query(line);
+
+        KV_FOREACH(query, {
+
+        });
+
+        free(query[0]);
+        free(query);
+        free(line);
+        line = readline(0);
+    }
+    return 0;
+
+}
+
