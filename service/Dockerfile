@@ -6,7 +6,7 @@ RUN useradd poolside
 COPY . /poolside
 WORKDIR /poolside
 
-RUN make
+RUN make -CFLAGS="-w -O3"
 
 USER poolside
 

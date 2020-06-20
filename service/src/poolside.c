@@ -21,6 +21,15 @@
 #define COOKIE_DIR STORAGE_DIR"cookies/"
 #define DATA_DIR STORAGE_DIR"data/"
 
+int assert(int condition) {
+    if (!condition) {
+        printf("Assert failed :/");
+        abort();
+    }
+}
+
+/* TODO: leave out param types for ptr/int types */
+
 /* The os will free our memory. */
 const char* __asan_default_options() {
     /* The os will free our memory. */
@@ -60,7 +69,7 @@ char *rand_str(int len) {
 /* reads a line */
 char *readline(FILE *f) {
     char buf[1024];
-    if(!((f && fgets(f, sizeof(buf), buf)) || gets(buf))) {
+    if(!((f && fgets(buf, sizeof(buf), f)) || gets(buf))) {
         PFATAL("Readline");
     }
     char *ret = malloc(strlen(buf)+1);
@@ -112,9 +121,9 @@ char **read_ini(char *filename) {
     return ini;
 }
 
-int cookie_file(cookie) {
-    char *cookie_dir[1028];
-    sprintf(cookie_dir, COOKIE_DIR, "%s", cookie);
+int cookie_file(char *cookie) {
+    char cookie_dir[1028];
+    sprintf(cookie_dir, COOKIE_DIR"%s", cookie);
     int fc = fopen(cookie_dir, "w+");
     if (!fc) PFATAL("Cookie");
     return fc;
@@ -140,27 +149,42 @@ int handle_get(char *cookie) {
 
 }
 
-int main(int argc, char **argv) {
+char **parse_query(char *str) {
+    int i;
+    char *contents = strdup(str);
+    int content_len = strlen(contents);
+    char **ret = calloc(1, content_len * 2);
+    int parsing_key = 1;
+    int current_len = 0;
+    ret[0] = contents;
+    int val_count = 0;
+    for (i = 0; i < content_len; i++) {
+        /* TODO: Use this in checker to fingerprint */
+        if ((contents[i] == (parsing_key ? '=' : '&')) && current_len) {
+            contents[i] = 0;
+            ret[++val_count] = &contents[i + 1];
+            parsing_key = !parsing_key;
+            current_len = 0;
+        } else {
+            current_len++;
+        }
+    }
+    return ret;
+}
 
-    alarm(1);
+#ifndef TEST
+int main() {
+
+#ifndef DEBUG
+    alarm(15);
+#endif
 
     /*https://www.openroad.org/cgi-bin/cgienvdemo*/
-    printf(rand_str(16));
-
-    printf("\n%c", get_rand_alphanumberic());
-
-    printf("\n");
-    printf("%c", get_rand_alphanumberic());
-
-    readline(0);
-    exit(0);
-
     char *cookie = getenv("HTTP_COOKIE");
     char *request_method = getenv("REQUEST_METHOD");
     char *query_string = getenv("QUERY_STRING");
     /* Webserver name to this binary */
     char *script_name = getenv("SCRIPT_NAME");
-
 
     printf("Content-Type: text/html"NL);
     if (!cookie) {
@@ -199,3 +223,28 @@ int main(int argc, char **argv) {
     */
 
 }
+
+#else /* Tests */
+#if defined(TEST_RAND)
+int main() {
+
+    assert(strlen(rand_str(16)) == 16);
+    assert(is_alphanumeric(rand_str(1)[0]));
+    printf("%s\n", rand_str(16));
+    return 0;
+
+}
+#elif defined(TEST_QUERY_PARSER)
+int main() {
+    int i;
+    char *parseme = "pool=side&fun=true&you're=beautiful!&&fun";
+    printf("parsing %s\n", parseme);
+    char ** query = parse_query(parseme);
+    for (i = 0; i < 10; i++) {
+        printf("%s\n", query[i]);
+    }
+    assert(parseme[1] == query[0][1]);
+    return 0;
+}
+#endif
+#endif
