@@ -5,14 +5,5 @@ services:
     volumes:
       - ../data:/data
     restart: unless-stopped
-
-  caddy:
-    image: caddy:latest
     ports:
-      - "9001:9001"
-    volumes:
-      - ../data/caddy:/root/.caddy
-      - ./Caddyfile:/etc/Caddyfile
-    restart: unless-stopped
-    depends_on:
-      - poolside
+      - 9001:9001
