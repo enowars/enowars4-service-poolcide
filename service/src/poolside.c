@@ -1,4 +1,4 @@
-#include "list.h"
+/*#include "list.h"*/
 
 #define RAND_LENGTH (16)
 #define _NULL ((void *) 0)
@@ -20,6 +20,17 @@
 #define COOKIE_LEN (64)
 #define COOKIE_DIR STORAGE_DIR"cookies/"
 #define DATA_DIR STORAGE_DIR"data/"
+
+#define KV_FOREACH(kv, block) do {              \
+    int idx = 0;                                \
+    char **cur = (kv);                          \
+    char *key, *val;                            \
+    while((key = cur[0]) && (val = cur[1])) {   \
+        {block}                                 \
+        idx++;                                  \
+        cur += 2;                               \
+    }                                           \
+} while (0);
 
 int assert(int condition) {
     if (!condition) {
@@ -53,6 +64,17 @@ char get_rand_alphanumberic() {
         return ret;
     }
     return get_rand_alphanumberic();
+}
+
+/* A new string with only alphanumeric chars.
+   The others are stripped. */
+char *dup_alphanumeric(char *str) {
+    int i;
+    char *ret = calloc(1, 1024);
+    for (i = 0; str[i]; i++) {
+        ret[i] = str[i];
+    }
+    return ret;
 }
 
 /* returns a random string with the given length */
@@ -90,7 +112,7 @@ char *get_val(char** ini, char *key) {
             return strdup(ini[i] + len);
         }
     }
-    return NULL;
+    return _NULL;
 }
 
 char *f_get_val(char** ini, char *key) {
@@ -106,8 +128,33 @@ char *f_get_val(char** ini, char *key) {
             return strdup(ini[i] + len);
         }
     }
-    return NULL;
+    return _NULL;
 }
+
+char **parse_query(char *str) {
+    int i;
+    char *contents = strdup(str);
+    int content_len = strlen(contents);
+    char **ret = calloc(1, content_len * 2);
+    int parsing_key = 1;
+    int current_len = 0;
+    ret[0] = contents;
+    int val_count = 0;
+    for (i = 0; i < content_len; i++) {
+        /* TODO: Use this in checker to fingerprint */
+        if ((contents[i] == (parsing_key ? '=' : '&')) && current_len) {
+            contents[i] = 0;
+            ret[++val_count] = &contents[i + 1];
+            parsing_key = !parsing_key;
+            current_len = 0;
+        } else {
+            current_len++;
+        }
+    }
+    return ret;
+}
+
+
 
 char **read_ini(char *filename) {
     char **ini = calloc(sizeof(char *), 256);
@@ -135,44 +182,58 @@ void write_ini_val(FILE *f, char *name) {
 
 int handle_post(char *cookie) {
 
-    readline(0);
+    char *line = readline(0);
+    while (line && line[0]) {
+        char **query = parse_query(line);
+
+        KV_FOREACH(query, {
+
+        });
+
+        free(query[0]);
+        free(query);
+        free(line);
+        line = readline(0);
+    }
     return 0;
 
 }
 
 int handle_get(char *cookie) {
 
-    /*cookie_file();*/
+    int cf = cookie_file(cookie);
+    readline(cf);
     /*read_ini(USER_DIR + username);*/
 
     return 0;
 
 }
 
-char **parse_query(char *str) {
-    int i;
-    char *contents = strdup(str);
-    int content_len = strlen(contents);
-    char **ret = calloc(1, content_len * 2);
-    int parsing_key = 1;
-    int current_len = 0;
-    ret[0] = contents;
-    int val_count = 0;
-    for (i = 0; i < content_len; i++) {
-        /* TODO: Use this in checker to fingerprint */
-        if ((contents[i] == (parsing_key ? '=' : '&')) && current_len) {
-            contents[i] = 0;
-            ret[++val_count] = &contents[i + 1];
-            parsing_key = !parsing_key;
-            current_len = 0;
-        } else {
-            current_len++;
-        }
-    }
-    return ret;
-}
+#ifdef TEST
+#if defined(TEST_RAND)
+int main() {
 
-#ifndef TEST
+    assert(strlen(rand_str(16)) == 16);
+    assert(is_alphanumeric(rand_str(1)[0]));
+    printf("%s\n", rand_str(16));
+    return 0;
+
+}
+#elif defined(TEST_QUERY_PARSER)
+int main() {
+    int i;
+    char *parseme = "pool=side&fun=true&you're=beautiful!&&fun=";
+    printf("parsing %s\n", parseme);
+    char ** query = parse_query(parseme);
+    KV_FOREACH(query, {
+        printf("key: %s, val: %s\n", key, val);
+    })
+    assert(parseme[1] == query[0][1]);
+    return 0;
+}
+#endif
+#else
+
 int main() {
 
 #ifndef DEBUG
@@ -190,6 +251,8 @@ int main() {
     if (!cookie) {
         /* A new user, welcome! :) */
         cookie = rand_str(COOKIE_LEN);
+    } else {
+        cookie = dup_alphanumeric(cookie);
     }
     printf("Set-Cookie: identity=%s"NL, cookie);
 
@@ -221,30 +284,8 @@ int main() {
     //printf(str);
     //free(str);
     */
+   free(cookie);
 
 }
 
-#else /* Tests */
-#if defined(TEST_RAND)
-int main() {
-
-    assert(strlen(rand_str(16)) == 16);
-    assert(is_alphanumeric(rand_str(1)[0]));
-    printf("%s\n", rand_str(16));
-    return 0;
-
-}
-#elif defined(TEST_QUERY_PARSER)
-int main() {
-    int i;
-    char *parseme = "pool=side&fun=true&you're=beautiful!&&fun";
-    printf("parsing %s\n", parseme);
-    char ** query = parse_query(parseme);
-    for (i = 0; i < 10; i++) {
-        printf("%s\n", query[i]);
-    }
-    assert(parseme[1] == query[0][1]);
-    return 0;
-}
-#endif
 #endif
