@@ -1,0 +1,6 @@
+*.pyc
+__pycache__
+*.o
+./service/cgi-bin/hardened
+./data/caddy
+./data/cookies

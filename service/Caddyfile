@@ -1,0 +1,3 @@
+:9001 {
+    reverse_proxy poolside:9001
+}
