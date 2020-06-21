@@ -8,24 +8,35 @@ CGI_DIR=./cgi-bin
 
 LIBS=-lm
 
+all: poolside
+
 _DEPS = poolside.h
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 _OBJ = poolside.o
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
+_TEMPLS = body_index.templ
+TEMPL = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
-$(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS)
+$(ODIR)/%templ: $(SRCDIR)/%.templ.html
+	./to_templ.py $< $@
+
+$(ODIR)/%.o: $(SRCDIR)/%.c $(DEPS) templates
 	$(CC) -c -o $@ $< $(CFLAGS)
-
-all: poolside
 
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ cgi-bin/poolside
+	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ cgi-bin/poolside $(ODIR)/*.templ
+
+$(ODIR)/body_index.templ:
+	./to_templ.py $(SRCDIR)/body_index.templ.html $(ODIR)/body_index.templ
+
+templates: $(ODIR)/body_index.templ
 
 poolside: $(OBJ)
+	make templates
 	$(CC) -o $(CGI_DIR)/$@ $^ $(CFLAGS) $(LIBS)
 
 run: poolside

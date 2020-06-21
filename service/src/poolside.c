@@ -13,6 +13,8 @@
 #define FILE void
 #define INI_LEN_MAX (256)
 #define DELIM ('=')
+#define KV_SPLIT ('&')
+#define KV_START ('?')
 #define NL "\r\n"
 
 #define STORAGE_DIR "../../data/"
@@ -25,12 +27,26 @@
     int idx = 0;                                \
     char **cur = (kv);                          \
     char *key, *val;                            \
-    while((key = cur[0]) && (val = cur[1])) {   \
+    while(cur[0] && cur[1]) {                   \
+        key = cur[0];                           \
+        val = cur[1];                           \
         {block}                                 \
         idx++;                                  \
         cur += 2;                               \
     }                                           \
 } while (0);
+
+#define TEMPLATE(x) #x
+
+
+typedef struct state {
+
+    char *cookie;
+    char *nonce;
+    char *route;
+    char **queries[32];
+
+} state_t;
 
 int assert(int condition) {
     if (!condition) {
@@ -136,16 +152,19 @@ char *f_get_val(char** ini, char *key) {
 
 char **parse_query(char *str) {
     int i;
+    int content_len = strlen(str);
+    char **ret = calloc(1, (content_len) * 4 + 8);
     char *contents = strdup(str);
-    int content_len = strlen(contents);
-    char **ret = calloc(1, content_len * 2);
     int parsing_key = 1;
     int current_len = 0;
     ret[0] = contents;
     int val_count = 0;
     for (i = 0; i < content_len; i++) {
         /* TODO: Use this in checker to fingerprint */
-        if ((contents[i] == (parsing_key ? '=' : '&')) && current_len) {
+        if (!contents[i]) {
+            ret[++val_count] = "";
+            return ret;
+        } else if ((contents[i] == (parsing_key ? DELIM : KV_SPLIT)) && current_len) {
             contents[i] = 0;
             ret[++val_count] = &contents[i + 1];
             parsing_key = !parsing_key;
@@ -154,7 +173,6 @@ char **parse_query(char *str) {
             current_len++;
         }
     }
-    return ret;
 }
 
 char **read_ini(char *filename) {
@@ -169,6 +187,23 @@ char **read_ini(char *filename) {
     return ini;
 }
 
+char *get_payload_val(state_t *state, char *key_to_find) {
+    int i;
+
+    for(i = 0;;i++) {
+        /*printf("p: %d %p"NL, i, state->queries[i]);*/
+        if (!state->queries[i]) {
+            state->queries[i] = parse_query(readline(0));
+        }
+        KV_FOREACH(state->queries[i], {
+            /*printf("%s %s\n", key, key_to_find);*/
+            if (!strcmp(key, key_to_find)) {
+                return val;
+            }
+        });
+    }
+}
+
 int cookie_file(char *cookie) {
     char cookie_dir[1028];
     sprintf(cookie_dir, COOKIE_DIR"%s", cookie);
@@ -181,10 +216,10 @@ void write_ini_val(FILE *f, char *name) {
 
 }
 
-int write_sec_headers(char *nonce) {
+int write_headers(state_t *state) {
 
-    /* TODO: CSP Nonce */
     printf(
+        /* TODO: Use CSP Nonce */
         "Content-Security-Policy: script-src 'self' 'unsafe-inline';"NL
         "X-Frame-Options: SAMEORIGIN"NL
         "X-Xss-Protection: 1; mode=block"NL
@@ -194,9 +229,42 @@ int write_sec_headers(char *nonce) {
             "geolocation 'self'; midi 'self'; sync-xhr 'self'; microphone 'self'; "
             "camera 'self'; magnetometer 'self'; gyroscope 'self'; speaker 'self'; "
             "fullscreen *; payment 'self';"NL
+
+        "Content-Type: text/html"NL
+
+        "Set-Cookie: identity="
+    );
+    printf(state->cookie);
+    printf(NL);
+
+    return 0;
+}
+
+int write_head(state_t *state) {
+
+    printf(
+        "<head>"NL
+        "   <title>&#127958; POOLSIDE</title>"NL
+        "</head>"NL
     );
 
     return 0;
+}
+
+state_t *init_state(char *current_cookie) {
+    int i;
+    state_t *state = calloc(sizeof(state_t), 1);
+    if (!current_cookie) {
+        /* A new user, welcome! :) */
+        state->cookie = rand_str(COOKIE_LEN);
+    } else {
+        state->cookie = dup_alphanumeric(current_cookie);
+    }
+    for (i = 0; i < 32; i++) {
+        state->queries[i] = _NULL;
+    }
+    state->nonce = rand_str(16);
+    return state;
 }
 
 /* run tests using
@@ -231,8 +299,19 @@ int main() {
     char *nonalpha3 = "%%!0";
     char *alpha1 = dup_alphanumeric(nonalpha1);
     printf("%s: %s", nonalpha1, alpha1);
-    assert(!strncmp(alpha, alpha1));
+    assert(!strcmp(alpha, alpha1));
     free(alpha1);
+    return 0;
+}
+#elif defined(TEST_PAYLOAD_VAL)
+int main() {
+    state_t *state = init_state(_NULL);
+    printf("%s\n", get_payload_val(state, "test"));
+    printf("%s\n", get_payload_val(state, "test2"));
+}
+#elif defined(TEST_READLINE)
+int main() {
+    printf("%s"NL, readline(0));
 }
 #else /* No TEST */
 
@@ -243,36 +322,39 @@ int main() {
 #endif
 
     /*https://www.openroad.org/cgi-bin/cgienvdemo*/
-    char *cookie = getenv("HTTP_COOKIE");
+    char *current_cookie = getenv("HTTP_COOKIE");
     char *request_method = getenv("REQUEST_METHOD");
     char *query_string = getenv("QUERY_STRING");
     /* Webserver name to this binary */
     char *script_name = getenv("SCRIPT_NAME");
 
-    char *nonce = rand_str(16);
-    write_sec_headers(nonce);
-
-    printf("Content-Type: text/html"NL);
-    if (!cookie) {
-        /* A new user, welcome! :) */
-        cookie = rand_str(COOKIE_LEN);
-    } else {
-        cookie = dup_alphanumeric(cookie);
-    }
-    printf("Set-Cookie: identity=%s"NL, cookie);
+    state_t *state = init_state(current_cookie);
+    write_headers(state);
 
     /* header end */
     printf(NL);
+
+    printf(
+        "<!DOCTYPE html>"NL
+        "<html>"NL
+    );
+
+    write_head(state);
+
+    if (!request_method) {
+        /* Debug Mode */
+        request_method = "GET";
+    }
 
     /*printf("%s %s %s", request_method, query_string, script_name);*/
 
     if (request_method && !strcmp(request_method, "GET")) {
 
-        handle_get(cookie);
+        handle_get(state);
 
     } else if (request_method && !strcmp(request_method, "POST")) {
 
-        handle_post(cookie);
+        handle_post(state);
 
     } else if (request_method && !strcmp(request_method, "TEST")) {
 
@@ -286,47 +368,39 @@ int main() {
 
     }
 
-    printf("<html><body></body></html>");
+    printf(NL"</html>"NL);
 
-    /*char *str = readline(0);
-    //printf(str);
-    //free(str);
-    */
-   free(cookie);
-   free(nonce);
+    return 0;
 
 }
 
 #endif
 
+
 /* The Webserver Methods */
 
-int handle_get(char *cookie) {
+int handle_get(state_t *state) {
 
     /*int cf = cookie_file(cookie);*/
-    printf("test");
     /*read_ini(USER_DIR + username);*/
+
+    char *username = "Testuser";
+    printf(
+        #include "body_index.templ"
+    );
+
 
     return 0;
 
 }
 
-int handle_post(char *cookie) {
+int handle_post(state_t *state) {
 
-    char *line = readline(0);
-    while (line && line[0]) {
-        char **query = parse_query(line);
+    printf("%s", get_payload_val(state, "route"));
 
-        KV_FOREACH(query, {
+}
 
-        });
-
-        free(query[0]);
-        free(query);
-        free(line);
-        line = readline(0);
-    }
-    return 0;
+int handle_login(state_t *state) {
 
 }
 
