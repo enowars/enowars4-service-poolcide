@@ -1,7 +1,7 @@
 CC=gcc
 override CFLAGS += -g -m32 -fno-omit-frame-pointer -std=c89 -D_FORTIFY_SOURCE=2 -O1 -Wformat -Wformat-security -Wl,-z,relro -Wl,-z,now -fstack-protector-strong -fsanitize=address -Wno-deprecated-declarations -Wno-int-conversion
 
-ODIR=./build
+ODIR=./src
 TDIR=./templates
 SRCDIR=./src
 IDIR=./src
@@ -12,7 +12,7 @@ LIBS=-lm
 all: poolside
 
 $(TDIR)/%.templ: $(TDIR)/%.templ.html
-	./to_templ.py $< $@
+	./to_templ.py $<
 
 $(ODIR)/%.o: $(SRCDIR)/%.c
 	make templates

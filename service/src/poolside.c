@@ -251,7 +251,7 @@ int write_head(state_t *state) {
     return 0;
 }
 
-state_t *init_state(char *current_cookie) {
+state_t *init_state(char *current_cookie, char *query_string) {
     int i;
     state_t *state = calloc(sizeof(state_t), 1);
     if (!current_cookie) {
@@ -260,9 +260,7 @@ state_t *init_state(char *current_cookie) {
     } else {
         state->cookie = dup_alphanumeric(current_cookie);
     }
-    for (i = 0; i < 32; i++) {
-        state->queries[i] = _NULL;
-    }
+    state->queries[0] = parse_query(query_string);
     state->nonce = rand_str(16);
     return state;
 }
@@ -328,7 +326,7 @@ int main() {
     /* Webserver name to this binary */
     char *script_name = getenv("SCRIPT_NAME");
 
-    state_t *state = init_state(current_cookie);
+    state_t *state = init_state(current_cookie, query_string);
     write_headers(state);
 
     /* header end */
