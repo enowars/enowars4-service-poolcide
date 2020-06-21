@@ -22,6 +22,7 @@
 #define COOKIE_LEN (64)
 #define COOKIE_DIR STORAGE_DIR"cookies/"
 #define DATA_DIR STORAGE_DIR"data/"
+#define USER_DIR DATA_DIR"user/"
 
 #define KV_FOREACH(kv, block) do {              \
     int idx = 0;                                \
@@ -43,6 +44,7 @@ typedef struct state {
 
     char *cookie;
     char *nonce;
+    char *user;
     char *route;
     char **queries[32];
 
@@ -118,22 +120,6 @@ char *readline(FILE *f) {
     return ret;
 }
 
-char *get_val(char** ini, char *key) {
-    int i;
-    int len = strlen(key) + 1;
-    char tok[len + 1];
-    strcpy(tok, key);
-    tok[len - 1] = DELIM;
-    tok[len] = 0;
-    for (i = 0; i < INI_LEN_MAX; i++) {
-        char *key_pos = strstr(ini[i], tok);
-        if (key_pos == ini[i]) {
-            return strdup(ini[i] + len);
-        }
-    }
-    return _NULL;
-}
-
 char *f_get_val(char** ini, char *key) {
     int i;
     int len = strlen(key) + 1;
@@ -187,7 +173,7 @@ char **read_ini(char *filename) {
     return ini;
 }
 
-char *get_payload_val(state_t *state, char *key_to_find) {
+char *get_val(state_t *state, char *key_to_find) {
     int i;
 
     for(i = 0;;i++) {
@@ -204,16 +190,12 @@ char *get_payload_val(state_t *state, char *key_to_find) {
     }
 }
 
-int cookie_file(char *cookie) {
-    char cookie_dir[1028];
+FILE *cookie_file(char *cookie) {
+    char cookie_dir[1032];
     sprintf(cookie_dir, COOKIE_DIR"%s", cookie);
-    int fc = fopen(cookie_dir, "w+");
+    int fc = fopen(cookie_dir, "r+");
     if (!fc) PFATAL("Cookie");
     return fc;
-}
-
-void write_ini_val(FILE *f, char *name) {
-
 }
 
 int write_headers(state_t *state) {
@@ -260,8 +242,16 @@ state_t *init_state(char *current_cookie, char *query_string) {
     } else {
         state->cookie = dup_alphanumeric(current_cookie);
     }
-    state->queries[0] = parse_query(query_string);
     state->nonce = rand_str(16);
+    state->queries[0] = parse_query(query_string);
+
+    state->route = "";
+    KV_FOREACH(state->queries[0], {
+        if (!strcmp(key, "route")) {
+            state->route = val;
+        }
+    })
+
     return state;
 }
 
@@ -301,15 +291,19 @@ int main() {
     free(alpha1);
     return 0;
 }
-#elif defined(TEST_PAYLOAD_VAL)
+#elif defined(TEST_VAL)
 int main() {
     state_t *state = init_state(_NULL);
-    printf("%s\n", get_payload_val(state, "test"));
-    printf("%s\n", get_payload_val(state, "test2"));
+    printf("%s\n", get_val(state, "test"));
+    printf("%s\n", get_val(state, "test2"));
 }
 #elif defined(TEST_READLINE)
 int main() {
     printf("%s"NL, readline(0));
+}
+#elif defined(TEST_HASH)
+int main() {
+    printf("%s"NL, hash("test"));
 }
 #else /* No TEST */
 
@@ -344,9 +338,10 @@ int main() {
         request_method = "GET";
     }
 
-    /*printf("%s %s %s", request_method, query_string, script_name);*/
+    dprintf(2, "%s %s %s %s", request_method, state->route, query_string, script_name);
 
-    if (request_method && !strcmp(request_method, "GET")) {
+    if ((request_method && !strcmp(request_method, "GET"))
+            || !strcmp(state->route, "")) {
 
         handle_get(state);
 
@@ -394,11 +389,112 @@ int handle_get(state_t *state) {
 
 int handle_post(state_t *state) {
 
-    printf("%s", get_payload_val(state, "route"));
+    printf("%s", get_val(state, "route"));
 
+}
+
+int cookie_write(state_t *state, char *key, char *val) {
+
+    int cf = cookie_file(state->cookie);
+
+}
+
+#define O_WRONLY	     01
+#define O_CREAT	   0100	/* Not fcntl.  */
+#define O_EXCL		   0200	/* Not fcntl.  */
+#define S_IWUSR	0200	/* Write by owner.  */
+#define	S_IRUSR	0400	/* Read by owner.  */
+
+#define	EEXIST		17	/* File exists */
+
+int user_create(char *name, char *pass_hash) {
+
+    char user_file[1032];
+    sprintf(user_file, USER_DIR"%s", name);
+
+/*Should be reasonably atomic, see https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c*/
+    int fd = open(user_file, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        /* failure */
+        /*if (errno == EEXIST) {
+            /* the file probably already existed */
+            return 0;
+        /*}*/
+    } else {
+        fprintf(fd, "name=%s\npass_hash=%s\n", name, pass_hash);
+    }
+}
+
+int handle_register(state_t *state) {
+    char *name = dup_alphanumeric(get_val(state, "name"));
+    cookie_write(state, "logged_in", "0");
+    cookie_write(state, "name", name);
+    char *pass_hash = get_val(state, "password");
+    if (!user_create(name, pass_hash)) {
+        printf("<h1>Sorry, username taken!</h1>");
+        exit(1);
+    }
+    state->user = name;
+    cookie_write(state, "logged_in", "1");
+}
+
+
+char *get_user_val(state_t *state, char *key) {
+    /* TODO */
+}
+
+int cookie_remove(state) {
+    /* todo */
 }
 
 int handle_login(state_t *state) {
 
+    char *name = get_val(state, "name");
+    cookie_write(state, "name", name);
+    char **read_user_kv(name);
+    char *login_pw_hash = hash(get_val(state, "password"));
+    char *stored_pw_hash = get_user_val(state, "pass_hash");
+    if (!strcmp(login_pw_hash, stored_pw_hash)) {
+        cookie_write(state, "logged_in", "true");
+    } else {
+        cookie_remove(state);
+    }
 }
 
+char *run(char *cmd, char *param) {
+
+    param = dup_alphanumeric(param);
+    char command[1024];
+
+    sprintf(command, cmd, param);
+    free(param);
+
+    FILE *fp;
+    char path[1035];
+
+    /* Open the command for reading. */
+    fp = popen(command, "r");
+    if (fp == _NULL) {
+        perror("Python hashing");
+        exit(1);
+    }
+
+    char *ret = readline(fp);
+    ret[strlen(ret)-2] = 0; /* strip newline */
+
+    pclose(fp);
+
+    return ret;
+
+}
+
+int hash(char *to_hash) {
+
+    char *hash = run(
+        "python3 -c 'print(__import__(\"hashlib\").sha256(b\"%s\").hexdigest())'",
+        to_hash
+    );
+
+    return hash;
+
+}
