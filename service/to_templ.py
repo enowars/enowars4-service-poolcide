@@ -36,7 +36,7 @@ def compile_template(in_file, out_file):
 
             for char in remainder:
                 # print("char", chr(char), "was_escaped", was_escaped)
-                if (char in [ord(x) for x in "%()/"]) or (
+                if (char in [ord(x) for x in "%()/,"]) or (
                     was_escaped and valid_hex(char)
                 ):
                     output.write(b"\\")
