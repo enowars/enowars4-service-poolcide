@@ -23,7 +23,7 @@ $(ODIR)/%.o: $(SRCDIR)/%.c
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ cgi-bin/poolside $(TDIR)/*.templ
 
-templates: $(TDIR)/*.templ
+templates: $(TDIR)/body_index.templ $(TDIR)/head.templ
 
 poolside: $(ODIR)/*.o
 	$(CC) -o $(CGI_DIR)/$@ $^ $(CFLAGS) $(LIBS)

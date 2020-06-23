@@ -4,6 +4,7 @@
         "cstring": "c",
         "typeinfo": "c",
         "*.html": "c",
-        "*.templ": "c"
+        "*.templ": "c",
+        "ranges": "c"
     }
 }

@@ -29,13 +29,17 @@
 
 #define KV_FOREACH(kv, block) do {              \
     int idx = 0;                                \
+    int key_idx = 0;                            \
+    int val_idx = 1;                            \
     char **cur = (kv);                          \
     char *key, *val;                            \
-    while(cur[0] && cur[1]) {                   \
-        key = cur[0];                           \
-        val = cur[1];                           \
+    while(cur[key_idx] && cur[val_idx]) {       \
+        key = cur[key_idx];                     \
+        val = cur[val_idx];                     \
         {block}                                 \
         idx++;                                  \
+        key_idx += 2;                           \
+        val_idx += 2;                           \
         cur += 2;                               \
     }                                           \
 } while (0);
@@ -83,7 +87,7 @@ const char* __asan_default_options() {
     return "detect_leaks=0";
 }
 
-/* Frees all memory we forgot to free */
+/* Frees all memory we no longer need */
 int trigger_gc(int code) {
     exit(code);
 }
@@ -184,12 +188,61 @@ char **read_ini(char *filename) {
             }
         }
         if (!key_exists) {
-            ini[idx*2] = key;
-            ini[(idx*2) + 1] = val;
+            ini[key_idx] = key;
+            ini[val_idx] = val;
         }
     });
 
     return ini;
+}
+
+char **file_set_val(char *filename, char *key, char *val) {
+    char *keycpy = strdup(key);
+    char *valcpy = strdup(val);
+    char **ini = read_ini(filename);
+    int wrote_val = 0;
+    int last_idx = 0;
+    KV_FOREACH(ini, {
+        if (key == keycpy) {
+            ini[val_idx] = &valcpy;
+            wrote_val = 1;
+        }
+        last_idx = val_idx;
+    });
+    if (!wrote_val) {
+        ini[last_idx+1] = keycpy;
+        ini[last_idx+2] = valcpy;
+    } else {
+        free(keycpy);
+    }
+    write_ini(filename, ini);
+    return 0;
+}
+
+void write_ini(char *filename, char **ini) {
+    int i;
+    int key_exists;
+    char *keys[128];
+    int linec = 0;
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        PFATAL("Couldn't open kv file");
+    }
+    KV_FOREACH(ini, {
+        key_exists = 0;
+        for (i = 0; i < 128 && keys[i]; i++) {
+            if (!strncmp(key, keys[i])) {
+                key_exists = 1;
+            }
+        }
+        if (!key_exists) {
+            if (!fprintf("%s=%s\n", key, val)) {
+                perror("Writing ini");
+                trigger_gc(1);
+                exit(1);
+            }
+        }
+    });
 }
 
 char *get_val(state_t *state, char *key_to_find) {
@@ -244,9 +297,7 @@ int write_headers(state_t *state) {
 int write_head(state_t *state) {
 
     printf(
-        "<head>"NL
-        "   <title>&#127958; POOLSIDE</title>"NL
-        "</head>"NL
+        #include<head.templ>
     );
 
     return 0;
@@ -262,14 +313,18 @@ state_t *init_state(char *current_cookie, char *query_string) {
         state->cookie = dup_alphanumeric(current_cookie);
     }
     state->nonce = rand_str(16);
-    state->queries[0] = parse_query(query_string);
-
     state->route = "";
-    KV_FOREACH(state->queries[0], {
-        if (!strcmp(key, "route")) {
-            state->route = val;
-        }
-    })
+    if (query_string) {
+        state->queries[0] = parse_query(query_string);
+
+        KV_FOREACH(state->queries[0], {
+            if (!strcmp(key, "route")) {
+                state->route = val;
+            }
+        })
+    } else {
+        query_string = "";
+    }
 
     return state;
 }
@@ -323,6 +378,10 @@ int main() {
 #elif defined(TEST_HASH)
 int main() {
     printf("%s"NL, hash("test"));
+}
+#elif defined(TEST_INI_FILES)
+int main() {
+    file_set_val("testfile", "testkey", "testval");
 }
 #else /* No TEST */
 
@@ -427,14 +486,25 @@ int cookie_write(state_t *state, char *key, char *val) {
 
 #define	EEXIST		17	/* File exists */
 
+FILE *file_create_atomic(char *filename) {
+
+    int fd = open(filename, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        fprintf(2, "Could not create file %s\n", filename);
+        return _NULL;
+    }
+    return fdopen(fd);
+}
+
 int user_create(char *name, char *pass_hash) {
 
     char user_file[1032];
     sprintf(user_file, USER_DIR"%s", name);
 
+    FILE *file = file_create_atomic(user_file);
+
 /*Should be reasonably atomic, see https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c*/
-    int fd = open(user_file, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
+    if (!file) {
         /* failure */
         /*if (errno == EEXIST) {
             /* the file probably already existed */
@@ -443,6 +513,7 @@ int user_create(char *name, char *pass_hash) {
     } else {
         fprintf(fd, "name=%s\npass_hash=%s\n", name, pass_hash);
     }
+    return 1;
 }
 
 int handle_register(state_t *state) {
