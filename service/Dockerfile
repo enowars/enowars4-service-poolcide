@@ -1,15 +1,15 @@
 FROM python:3.8-buster
 
 RUN apt-get update && apt-get install -y gcc-multilib
-RUN useradd poolside
+RUN useradd poolcide
 
-COPY . /poolside
-WORKDIR /poolside
+COPY . /poolcide
+WORKDIR /poolcide
 
-RUN make templates
-RUN make -CFLAGS="-w -O3"
+RUN make clean
+RUN make
 
-USER poolside
+USER poolcide
 
 EXPOSE 9001
 

@@ -71,7 +71,7 @@ typedef struct state {
 
 } state_t;
 
-int assert(int condition) {
+void assert(int condition) {
     if (!condition) {
         printf("Assert failed :/\n");
         trigger_gc(1);
@@ -183,7 +183,7 @@ char **read_ini(char *filename) {
     FILE_KV_FOREACH(filename, {
         key_exists = 0;
         for (i = 0; i < 128 && keys[i]; i++) {
-            if (!strncmp(key, keys[i])) {
+            if (!strcmp(key, keys[i])) {
                 key_exists = 1;
             }
         }
@@ -194,29 +194,6 @@ char **read_ini(char *filename) {
     });
 
     return ini;
-}
-
-char **file_set_val(char *filename, char *key, char *val) {
-    char *keycpy = strdup(key);
-    char *valcpy = strdup(val);
-    char **ini = read_ini(filename);
-    int wrote_val = 0;
-    int last_idx = 0;
-    KV_FOREACH(ini, {
-        if (key == keycpy) {
-            ini[val_idx] = &valcpy;
-            wrote_val = 1;
-        }
-        last_idx = val_idx;
-    });
-    if (!wrote_val) {
-        ini[last_idx+1] = keycpy;
-        ini[last_idx+2] = valcpy;
-    } else {
-        free(keycpy);
-    }
-    write_ini(filename, ini);
-    return 0;
 }
 
 void write_ini(char *filename, char **ini) {
@@ -231,7 +208,7 @@ void write_ini(char *filename, char **ini) {
     KV_FOREACH(ini, {
         key_exists = 0;
         for (i = 0; i < 128 && keys[i]; i++) {
-            if (!strncmp(key, keys[i])) {
+            if (!strcmp(key, keys[i])) {
                 key_exists = 1;
             }
         }
@@ -243,6 +220,31 @@ void write_ini(char *filename, char **ini) {
             }
         }
     });
+}
+
+
+
+char **file_set_val(char *filename, char *key, char *val) {
+    char *keycpy = strdup(key);
+    char *valcpy = strdup(val);
+    char **ini = read_ini(filename);
+    int wrote_val = 0;
+    int last_idx = 0;
+    KV_FOREACH(ini, {
+        if (key == keycpy) {
+            ini[val_idx] = valcpy;
+            wrote_val = 1;
+        }
+        last_idx = val_idx;
+    });
+    if (!wrote_val) {
+        ini[last_idx+1] = keycpy;
+        ini[last_idx+2] = valcpy;
+    } else {
+        free(keycpy);
+    }
+    write_ini(filename, ini);
+    return 0;
 }
 
 char *get_val(state_t *state, char *key_to_find) {
@@ -404,11 +406,6 @@ int main() {
     /* header end */
     printf(NL);
 
-    printf(
-        "<!DOCTYPE html>"NL
-        "<html>"NL
-    );
-
     write_head(state);
 
     if (!request_method) {
@@ -472,9 +469,10 @@ int handle_post(state_t *state) {
 
 }
 
-int cookie_write(state_t *state, char *key, char *val) {
+void cookie_write(state_t *state, char *key, char *val) {
 
     int cf = cookie_file(state->cookie);
+    /* TODO: Finish */
 
 }
 
@@ -511,12 +509,12 @@ int user_create(char *name, char *pass_hash) {
             return 0;
         /*}*/
     } else {
-        fprintf(fd, "name=%s\npass_hash=%s\n", name, pass_hash);
+        fprintf(file, "name=%s\npass_hash=%s\n", name, pass_hash);
     }
     return 1;
 }
 
-int handle_register(state_t *state) {
+void handle_register(state_t *state) {
     char *name = dup_alphanumeric(get_val(state, "name"));
     cookie_write(state, "logged_in", "0");
     cookie_write(state, "name", name);
@@ -541,7 +539,7 @@ int cookie_remove(state) {
 
 char *file_kv_read(char *filename, char *to_find, char *default_val) {
     FILE_KV_FOREACH(filename, {
-        if (!strncmp(key, to_find)) {
+        if (!strcmp(key, to_find)) {
             return val;
         }
     });
@@ -552,7 +550,8 @@ int handle_login(state_t *state) {
 
     char *name = get_val(state, "name");
     cookie_write(state, "name", name);
-    char **read_user_kv(name);
+    /* TODO: char **read_user_kv(name); */
+
     char *login_pw_hash = hash(get_val(state, "password"));
     char *stored_pw_hash = get_user_val(state, "pass_hash");
     if (!strcmp(login_pw_hash, stored_pw_hash)) {
@@ -600,3 +599,22 @@ int hash(char *to_hash) {
     return hash;
 
 }
+
+char *escape(char *replace, char *str) {
+    int i;
+    int len = strlen(str);
+    int replace_len = strlen(replace);
+    char *ret = malloc(len * replace_len + 1);
+    for (i = 0; i < len; i++) {
+        sprintf(ret[i * replace_len], replace, str[i]);
+    }
+    ret[len * replace_len + 1] = 0;
+    return ret;
+}
+
+#define E4(name, replace) char *escape_4_##name(char *str) {   \
+    return escape(replace, str);                        \
+}
+
+E4(py, "\\x%2x")
+E4(html, "&#%2x;")
