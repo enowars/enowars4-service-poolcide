@@ -24,6 +24,9 @@
 #define DATA_DIR STORAGE_DIR"data/"
 #define USER_DIR DATA_DIR"user/"
 
+#define BODY() readline(0)
+#define FILE_NEXT() readline(fileno(file))
+
 #define KV_FOREACH(kv, block) do {              \
     int idx = 0;                                \
     char **cur = (kv);                          \
@@ -37,8 +40,22 @@
     }                                           \
 } while (0);
 
-#define TEMPLATE(x) #x
+#define FILE_KV_FOREACH(filename, block) do {   \
+    FILE *file = fopen(filename, "r");          \
+    if (!file) {                                \
+        PFATAL("Couldn't open kv file");        \
+    }                                           \
+    do {                                        \
+        char **query = parse_query(FILE_NEXT());\
+        if (!query) { break; }                  \
+        KV_FOREACH(query, {                     \
+            block                               \
+        });                                     \
+    } while (1);                                \
+    fclose(file);                               \
+} while (0);
 
+#define TEMPLATE(x) #x
 
 typedef struct state {
 
@@ -53,6 +70,7 @@ typedef struct state {
 int assert(int condition) {
     if (!condition) {
         printf("Assert failed :/\n");
+        trigger_gc(1);
         exit(1);
     }
 }
@@ -63,6 +81,11 @@ int assert(int condition) {
 const char* __asan_default_options() {
     /* The os will free our memory. */
     return "detect_leaks=0";
+}
+
+/* Frees all memory we forgot to free */
+int trigger_gc(int code) {
+    exit(code);
 }
 
 /* 0-9A-Za-z */
@@ -113,30 +136,16 @@ char *rand_str(int len) {
 char *readline(FILE *f) {
     char buf[1024];
     if(!((f && fgets(buf, sizeof(buf), f)) || gets(buf))) {
-        PFATAL("Readline");
+        /* Looks like EOF to me */
+        return _NULL;
     }
     char *ret = malloc(strlen(buf)+1);
     strcpy(ret, buf);
     return ret;
 }
 
-char *f_get_val(char** ini, char *key) {
-    int i;
-    int len = strlen(key) + 1;
-    char tok[len + 1];
-    strcpy(tok, key);
-    tok[len - 1] = DELIM;
-    tok[len] = 0;
-    for (i = 0; i < INI_LEN_MAX; i++) {
-        char *key_pos = strstr(ini[i], tok);
-        if (key_pos == ini[i]) {
-            return strdup(ini[i] + len);
-        }
-    }
-    return _NULL;
-}
-
 char **parse_query(char *str) {
+    if (!str) { return _NULL; }
     int i;
     int content_len = strlen(str);
     char **ret = calloc(1, (content_len) * 4 + 8);
@@ -162,14 +171,24 @@ char **parse_query(char *str) {
 }
 
 char **read_ini(char *filename) {
+    int i;
+    int key_exists;
     char **ini = calloc(1, 256);
+    char *keys[128];
     int linec = 0;
-    FILE *f = fopen(filename, "r+");
-    if (!f) { PFATAL("Couldn't open ini"); }
-    do {
-        ini[linec++] = readline(f);
-    } while (ini[linec - 1]);
-    fclose(f);
+    FILE_KV_FOREACH(filename, {
+        key_exists = 0;
+        for (i = 0; i < 128 && keys[i]; i++) {
+            if (!strncmp(key, keys[i])) {
+                key_exists = 1;
+            }
+        }
+        if (!key_exists) {
+            ini[idx*2] = key;
+            ini[(idx*2) + 1] = val;
+        }
+    });
+
     return ini;
 }
 
@@ -179,7 +198,7 @@ char *get_val(state_t *state, char *key_to_find) {
     for(i = 0;;i++) {
         /*printf("p: %d %p"NL, i, state->queries[i]);*/
         if (!state->queries[i]) {
-            state->queries[i] = parse_query(readline(0));
+            state->queries[i] = parse_query(BODY());
         }
         KV_FOREACH(state->queries[i], {
             /*printf("%s %s\n", key, key_to_find);*/
@@ -299,7 +318,7 @@ int main() {
 }
 #elif defined(TEST_READLINE)
 int main() {
-    printf("%s"NL, readline(0));
+    printf("%s"NL, BODY_NEXT();
 }
 #elif defined(TEST_HASH)
 int main() {
@@ -352,6 +371,7 @@ int main() {
     } else if (request_method && !strcmp(request_method, "TEST")) {
 
         printf("TEST"NL);
+        trigger_gc(0);
         exit(0);
 
     } else {
@@ -432,6 +452,7 @@ int handle_register(state_t *state) {
     char *pass_hash = get_val(state, "password");
     if (!user_create(name, pass_hash)) {
         printf("<h1>Sorry, username taken!</h1>");
+        trigger_gc(1);
         exit(1);
     }
     state->user = name;
@@ -445,6 +466,15 @@ char *get_user_val(state_t *state, char *key) {
 
 int cookie_remove(state) {
     /* todo */
+}
+
+char *file_kv_read(char *filename, char *to_find, char *default_val) {
+    FILE_KV_FOREACH(filename, {
+        if (!strncmp(key, to_find)) {
+            return val;
+        }
+    });
+    return default_val;
 }
 
 int handle_login(state_t *state) {
@@ -476,6 +506,7 @@ char *run(char *cmd, char *param) {
     fp = popen(command, "r");
     if (fp == _NULL) {
         perror("Python hashing");
+        trigger_gc(1);
         exit(1);
     }
 

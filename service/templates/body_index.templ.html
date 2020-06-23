@@ -2,6 +2,16 @@ TEMPLATE(
 
   <body>
   <h1>Hello {{username%s}}</h1>
+  <p id=pyramid style='font-family: "Lucida Console", Monaco, monospace;' />
   </body>
+
+<script>
+
+  for(o=i=2020;i--;)o+=i%63?i&i/32&&'_':`
+`
+  pyramid.innerHTML = o.replaceAll("\n", "<br>")
+
+</script>
+
 
 )
