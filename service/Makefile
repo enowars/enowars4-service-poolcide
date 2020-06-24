@@ -65,8 +65,13 @@ test_ini_files:
 	make poolcide 'CFLAGS="-DTEST_INI_FILES" -w'
 	./cgi-bin/poolcide
 	make clean
+test_escape:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_ESCAPE" -w'
+	./cgi-bin/poolcide
+	make clean
 
-tests: test_ini_files test_rand test_query_parser test_alpha test_val test_readline test_hash
+tests: test_escape test_ini_files test_rand test_query_parser test_alpha test_val test_readline test_hash
 	@echo ""
 	@echo "[*] All tests done"
 	

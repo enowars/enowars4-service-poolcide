@@ -68,6 +68,7 @@ extern FILE *stderr;
     fclose(file);                               \
 } while (0);
 
+/* Templating in C is eas-C */
 #define TEMPLATE(x) #x
 
 typedef struct state {
@@ -102,6 +103,30 @@ const char* __asan_default_options() {
 int trigger_gc(int code) {
     exit(code);
 }
+
+char *escape(char *replace, char *str) {
+    int i;
+    int len = strlen(str);
+    int written = 0;
+    /* all the right values for all the wrong reasons */
+    int replace_len = ((strlen(replace) + 2));
+    char *ret = calloc(1, len * replace_len);
+    /* printf("len %d, replen %d, rep %s, str %s, ptr %p\n", len, replace_len, replace, str, ret); */
+    for (i = 0; i < len; i++) {
+        printf("%d %c %s\n", written, str[i], ret);
+        fflush(stdout);
+        written += sprintf(ret + written, replace, str[i]);
+        /*sprintf(ret + (i * replace_len), replace, str[i]);*/
+    }
+    return ret;
+}
+
+#define E4(name, replace) char *escape_4_##name(char *str) {   \
+    return escape(replace, str);                        \
+}
+
+E4(py, "\\x%2x")
+E4(html, "&#%2x;")
 
 FILE *file_create_atomic(char *filename) {
 
@@ -485,6 +510,12 @@ int main() {
     file_delete(testfile);
     return 0;
 }
+#elif defined(TEST_ESCAPE)
+int main() {
+    assert(!strcmp(escape_4_html("AA"), "&#41;&#41;"));
+    assert(!strcmp(escape_4_py("AA"), "\\x41\\x41"));
+    return 0;
+}
 #else /* No TEST */
 
 int main() {
@@ -686,21 +717,4 @@ int hash(char *to_hash) {
 
 }
 
-char *escape(char *replace, char *str) {
-    int i;
-    int len = strlen(str);
-    int replace_len = strlen(replace);
-    char *ret = malloc(len * replace_len + 1);
-    for (i = 0; i < len; i++) {
-        sprintf(ret[i * replace_len], replace, str[i]);
-    }
-    ret[len * replace_len + 1] = 0;
-    return ret;
-}
 
-#define E4(name, replace) char *escape_4_##name(char *str) {   \
-    return escape(replace, str);                        \
-}
-
-E4(py, "\\x%2x")
-E4(html, "&#%2x;")
