@@ -45,9 +45,7 @@ extern FILE *stderr;
 #define BODY() readline(0)
 #define FILE_NEXT() readline(file)
 
-#define KV_FOREACH(kv, block)                \
-    do                                       \
-    {                                        \
+#define KV_FOREACH(kv, block) do {           \
         int idx = 0;                         \
         int key_idx = 0;                     \
         int val_idx = 1;                     \
@@ -63,9 +61,7 @@ extern FILE *stderr;
         }                                    \
     } while (0);
 
-#define FILE_KV_FOREACH(filename, block)             \
-    do                                               \
-    {                                                \
+#define FILE_KV_FOREACH(filename, block) do {        \
         FILE *file = fopen(filename, "r");           \
         if (!file)                                   \
         {                                            \
@@ -86,8 +82,7 @@ extern FILE *stderr;
 /* Templating in C is eas-C */
 #define TEMPLATE(x) #x
 
-typedef struct state
-{
+typedef struct state {
 
     char *cookie;
     char *nonce;
@@ -102,10 +97,8 @@ typedef struct state
 
 } state_t;
 
-void assert(int condition)
-{
-    if (!condition)
-    {
+void assert(int condition) {
+    if (!condition) {
         fprintf(stderr, "Assert failed :/\n");
         fflush(stdout);
         fflush(stderr);
@@ -117,20 +110,17 @@ void assert(int condition)
 /* TODO: leave out param types for ptr/int types */
 
 /* The os will free our memory. */
-const char *__asan_default_options()
-{
+const char *__asan_default_options() {
     /* The os will free our memory. */
     return "detect_leaks=0";
 }
 
 /* Frees all memory we no longer need */
-int trigger_gc(int code)
-{
+int trigger_gc(int code) {
     exit(code);
 }
 
-char *escape(char *replace, char *str)
-{
+char *escape(char *replace, char *str) {
     int i;
     int len = strlen(str);
     int written = 0;
@@ -402,8 +392,7 @@ char **file_set_val(char *filename, char *key_to_write, char *val_to_write)
     return 0;
 }
 
-char *get_val(state_t *state, char *key_to_find)
-{
+char *get_val(state_t *state, char *key_to_find, char *default_val, int blocking) {
     int i;
 
     for (i = 0;; i++)
@@ -411,6 +400,7 @@ char *get_val(state_t *state, char *key_to_find)
         /*printf("p: %d %p"NL, i, state->queries[i]);*/
         if (!state->queries[i])
         {
+            if (!blocking) { return default_val; }
             state->queries[i] = parse_query(BODY());
         }
         if (!state->queries[i])
@@ -470,7 +460,7 @@ int write_head(state_t *state)
 {
 
     printf(
-#include <head.templ>
+        #include <head.templ>
     );
 
     return 0;
@@ -716,7 +706,7 @@ int handle_get(state_t *state)
 int handle_post(state_t *state)
 {
 
-    printf("%s", get_val(state, "route"));
+    printf("%s", get_val(state, "route", "index", 0));
     return 0;
 }
 
@@ -762,21 +752,28 @@ int user_create(char *name, char *pass_hash)
     return 1;
 }
 
-void handle_register(state_t *state)
+int handle_register(state_t *state)
 {
-    char *username = dup_alphanumeric(get_val(state, "username"));
+    char *username = dup_alphanumeric(get_val(state, "username", "", 1));
+    if (!strlen(username)) {
+        goto invalid_username;
+    }
     cookie_set_val(state, "logged_in", "0");
     cookie_set_val(state, "username", username);
-    char *pass_hash = get_val(state, "password");
-    if (!user_create(username, pass_hash))
-    {
-        printf("<h1>Sorry, username taken!</h1>");
-        trigger_gc(1);
-        exit(1);
+    char *pass_hash = get_val(state, "password", "", 1);
+    if (!user_create(username, pass_hash)) {
+        goto invalid_username;
     }
     state->username = username;
     state->user_loc = loc_user(state->username);
     cookie_set_val(state, "logged_in", "1");
+    return 0;
+invalid_username:
+    /* TODO Template? */
+    printf("<h1>Sorry, username taken!</h1>");
+    trigger_gc(1);
+    exit(1);
+    return -1;
 }
 
 char *get_user_val(state_t *state, char *key, char *default_val)
@@ -794,25 +791,28 @@ int handle_login(state_t *state)
 {
 
     cookie_set_val(state, "logged_in", 0);
-    char *username = dup_alphanumeric(get_val(state, "username"));
+    char *username = dup_alphanumeric(get_val(state, "username", "", 1));
+    if (strlen(username) < 1) {
+        goto user_not_found;
+    }
     state->user_loc = loc_user(username);
     cookie_set_val(state, "username", username);
-    char *login_pw_hash = hash(get_val(state, "password"));
+    char *login_pw_hash = hash(get_val(state, "password", _NULL, 1));
     char *stored_pw_hash = get_user_val(state, "pass_hash", _NULL);
     if (!stored_pw_hash)
     {
-        printf(
-#include "user_not_found.templ"
-        );
-        cookie_remove(state);
-        trigger_gc(1);
-        exit(1);
+        goto user_not_found;
     }
     if (!strcmp(login_pw_hash, stored_pw_hash))
     {
         cookie_set_val(state, "logged_in", 1);
         return 0;
     }
+user_not_found:
+    printf(
+        #include "user_not_found.templ"
+    );
+    
 error:
     cookie_remove(state);
     trigger_gc(1);
