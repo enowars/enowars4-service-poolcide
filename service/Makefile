@@ -75,3 +75,5 @@ tests: test_escape test_ini_files test_rand test_query_parser test_alpha test_va
 	@echo ""
 	@echo "[*] All tests done"
 	
+format:
+	./.custom-format.py -i $(SRCDIR)/*.c
