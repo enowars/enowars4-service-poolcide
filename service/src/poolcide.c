@@ -17,6 +17,16 @@
 #define KV_START ('?')
 #define NL "\r\n"
 
+
+#define LOC(name, DIR) char *loc_##name(char *locname) { \
+    char *loc = calloc(1, 1032);                         \
+    sprintf(loc, ##DIR"%s", locname);                    \
+    return loc;                                          \
+}
+
+LOC(cookie, COOKIE_DIR)
+LOC(user, USER_DIR)
+
 #define STORAGE_DIR "../../data/"
 
 #define COOKIE_LEN (64)
@@ -347,16 +357,6 @@ char *file_get_val(char *filename, char *key_to_find) {
         }
     });
     return _NULL;
-}
-
-
-
-FILE *cookie_file(char *cookie) {
-    char cookie_dir[1032];
-    sprintf(cookie_dir, COOKIE_DIR"%s", cookie);
-    int fc = fopen(cookie_dir, "r+");
-    if (!fc) PFATAL("Cookie");
-    return fc;
 }
 
 int write_headers(state_t *state) {
