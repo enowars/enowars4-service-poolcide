@@ -180,6 +180,14 @@ char **parse_query(char *str) {
     int current_len = 0;
     ret[0] = contents;
     int val_count = 0;
+
+    /* Strip tailing newline */
+    if (contents[content_len - 1] == '\n') {
+        content_len = content_len - 1;
+        contents[content_len] = '\0';
+    }
+
+    /* parse */
     for (i = 0; i < content_len; i++) {
         /* TODO: Use this in checker to fingerprint */
         if (!contents[i]) {
@@ -194,6 +202,7 @@ char **parse_query(char *str) {
             current_len++;
         }
     }
+    return ret;
 }
 
 char **read_ini(char *filename) {
@@ -221,27 +230,29 @@ char **read_ini(char *filename) {
 void write_ini(char *filename, char **ini) {
     int i;
     int key_exists;
-    char *keys[128];
+    char *keys[128] = {0};
     int linec = 0;
-    FILE *file = fopen(filename, "r");
+    FILE *file = fopen(filename, "w");
     if (!file) {
         PFATAL("Couldn't open kv file");
     }
     KV_FOREACH(ini, {
         key_exists = 0;
-        for (i = 0; i < 128 && keys[i]; i++) {
+        for (i = 0; keys[i]; i++) {
             if (!strcmp(key, keys[i])) {
                 key_exists = 1;
             }
         }
         if (!key_exists) {
-            if (!fprintf("%s=%s\n", key, val)) {
+            if (fprintf(file, "%s=%s\n", key, val) < 0) {
                 perror("Writing ini");
                 trigger_gc(1);
                 exit(1);
             }
+            keys[i] = key;
         }
     });
+    fclose(file);
 }
 
 void debug_print_query(char **query) {
@@ -259,7 +270,7 @@ char **file_set_val(char *filename, char *key, char *val) {
     char *valcpy = strdup(val);
     char **ini = read_ini(filename);
     int wrote_val = 0;
-    int last_idx = 0;
+    int last_idx = -1;
     KV_FOREACH(ini, {
         if (key == keycpy) {
             ini[val_idx] = valcpy;
@@ -267,13 +278,14 @@ char **file_set_val(char *filename, char *key, char *val) {
         }
         last_idx = val_idx;
     });
+    /* printf("Wrote val: %d, last_idx: %d\n", wrote_val, last_idx); */
     if (!wrote_val) {
         ini[last_idx+1] = keycpy;
         ini[last_idx+2] = valcpy;
     } else {
         free(keycpy);
     }
-    debug_print_query(ini);
+    /* debug_print_query(ini); */
     write_ini(filename, ini);
     return 0;
 }
@@ -302,7 +314,13 @@ char *get_val(state_t *state, char *key_to_find) {
 
 char *file_get_val(char *filename, char *key_to_find) {
     char **ini = read_ini(filename);
-    return get_val(ini, key_to_find);
+    KV_FOREACH(ini, {
+        /*printf("%s %s\n", key, key_to_find);*/
+        if (!strcmp(key, key_to_find)) {
+            return val;
+        }
+    });
+    return _NULL;
 }
 
 
@@ -450,6 +468,7 @@ int main() {
     FILE *f = file_create_atomic(testfile);
     fclose(f);
     file_set_val(testfile, key, val);
+    system("cat testfile.tmp");
     char *read_val = file_get_val(testfile, key);
     assert(!strcmp(val, read_val));
     file_delete(testfile);

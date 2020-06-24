@@ -66,7 +66,7 @@ test_ini_files:
 	./cgi-bin/poolcide
 	make clean
 
-tests: test_rand test_query_parser test_alpha test_val test_readline test_hash test_ini_files 
+tests: test_ini_files test_rand test_query_parser test_alpha test_val test_readline test_hash
 	@echo ""
 	@echo "[*] All tests done"
 	
