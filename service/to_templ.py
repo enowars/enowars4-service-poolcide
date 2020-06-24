@@ -42,6 +42,11 @@ def compile_template(in_file, out_file):
                     output.write(b"\\")
                     output.write(hex(char)[1:].encode())
 
+                    if (char == ord("%")):
+                        # we need %% so that printf ignores this %
+                        output.write(b"\\")
+                        output.write(hex(char)[1:].encode())
+
                     was_escaped = True
                 else:
                     output.write(b"%c" % char)
