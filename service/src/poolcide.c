@@ -83,7 +83,9 @@ typedef struct state {
 
 void assert(int condition) {
     if (!condition) {
-        printf("Assert failed :/\n");
+        fprintf(stderr, "Assert failed :/\n");
+        fflush(stdout);
+        fflush(stderr);
         trigger_gc(1);
         exit(1);
     }
