@@ -50,7 +50,6 @@ extern FILE *stderr;
         idx++;                                  \
         key_idx += 2;                           \
         val_idx += 2;                           \
-        cur += 2;                               \
     }                                           \
 } while (0);
 
@@ -207,20 +206,21 @@ char **parse_query(char *str) {
 
 char **read_ini(char *filename) {
     int i;
+    int ini_pos = 0;
     int key_exists;
     char **ini = calloc(1, 256);
-    char *keys[128];
+    char *keys[128] = {0};
     int linec = 0;
     FILE_KV_FOREACH(filename, {
         key_exists = 0;
-        for (i = 0; i < 128 && keys[i]; i++) {
+        for (i = 0; keys[i]; i++) {
             if (!strcmp(key, keys[i])) {
                 key_exists = 1;
             }
         }
         if (!key_exists) {
-            ini[key_idx] = key;
-            ini[val_idx] = val;
+            ini[ini_pos++] = key;
+            ini[ini_pos++] = val;
         }
     });
 
@@ -244,6 +244,8 @@ void write_ini(char *filename, char **ini) {
             }
         }
         if (!key_exists) {
+            fprintf(stdout, "Outputting %s=%s\n", key, val);
+            
             if (fprintf(file, "%s=%s\n", key, val) < 0) {
                 perror("Writing ini");
                 trigger_gc(1);
@@ -256,36 +258,35 @@ void write_ini(char *filename, char **ini) {
 }
 
 void debug_print_query(char **query) {
-    fprintf(stdout, "---> Query:\n");
+    fprintf(stderr, "---> Query:\n");
     KV_FOREACH(query, {
-        fprintf(stdout, "%s=%s\n", key, val);
+        fprintf(stderr, "%s=%s\n", key, val);
     });
-    fprintf(stdout, "<--- EOQ\n");
-    fflush(stdout);
+    fprintf(stderr, "<--- EOQ\n");
+    fflush(stderr);
 }
 
 
-char **file_set_val(char *filename, char *key, char *val) {
-    char *keycpy = strdup(key);
-    char *valcpy = strdup(val);
+char **file_set_val(char *filename, char *key_to_write, char *val_to_write) {
+    char *keycpy = strdup(key_to_write);
+    char *valcpy = strdup(val_to_write);
     char **ini = read_ini(filename);
+    printf("Setting %s to %s, Read:\n", key_to_write, val_to_write);
     int wrote_val = 0;
     int last_idx = -1;
     KV_FOREACH(ini, {
-        if (key == keycpy) {
+        if (!strcmp(key, keycpy)) {
             ini[val_idx] = valcpy;
             wrote_val = 1;
         }
         last_idx = val_idx;
     });
-    /* printf("Wrote val: %d, last_idx: %d\n", wrote_val, last_idx); */
     if (!wrote_val) {
         ini[last_idx+1] = keycpy;
         ini[last_idx+2] = valcpy;
     } else {
         free(keycpy);
     }
-    /* debug_print_query(ini); */
     write_ini(filename, ini);
     return 0;
 }
@@ -463,23 +464,23 @@ int main() {
 int main() {
     char *testfile = "testfile.tmp";
     char *key = "testkey";
-    char *key2 = "testkey2";
     char *val = "testval";
+    char *val2 = "testval2";
     file_delete(testfile);
     FILE *f = file_create_atomic(testfile);
     fclose(f);
     file_set_val(testfile, key, val);
     
-    system("cat testfile.tmp");
     char *read_val = file_get_val(testfile, key);
     assert(!strcmp(val, read_val));
 
     file_set_val(testfile, "some", "value");
-    file_set_val(testfile, key2, val);
+    file_set_val(testfile, key, val2);
     file_set_val(testfile, "someother", "value");
+    system("cat testfile.tmp");
     read_val = file_get_val(testfile, key);
     assert(strcmp(val, read_val));
-    assert(!strcmp(val, read_val2));
+    assert(!strcmp(val2, read_val));
 
     file_delete(testfile);
     return 0;
