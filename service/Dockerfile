@@ -7,6 +7,7 @@ COPY . /poolcide
 WORKDIR /poolcide
 
 RUN make clean
+RUN make tests
 RUN make
 
 USER poolcide

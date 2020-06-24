@@ -24,8 +24,18 @@
 #define DATA_DIR STORAGE_DIR"data/"
 #define USER_DIR DATA_DIR"user/"
 
+#define O_WRONLY	     01
+#define O_CREAT	   0100	/* Not fcntl.  */
+#define O_EXCL		   0200	/* Not fcntl.  */
+#define S_IWUSR	0200	/* Write by owner.  */
+#define	S_IRUSR	0400	/* Read by owner.  */
+
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
+
 #define BODY() readline(0)
-#define FILE_NEXT() readline(fileno(file))
+#define FILE_NEXT() readline(file)
 
 #define KV_FOREACH(kv, block) do {              \
     int idx = 0;                                \
@@ -90,6 +100,16 @@ const char* __asan_default_options() {
 /* Frees all memory we no longer need */
 int trigger_gc(int code) {
     exit(code);
+}
+
+FILE *file_create_atomic(char *filename) {
+
+    int fd = open(filename, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        fprintf(2, "Could not create file %s\n", filename);
+        return _NULL;
+    }
+    return fdopen(fd, "w");
 }
 
 /* 0-9A-Za-z */
@@ -222,6 +242,14 @@ void write_ini(char *filename, char **ini) {
     });
 }
 
+void debug_print_query(char **query) {
+    fprintf(stdout, "---> Query:\n");
+    KV_FOREACH(query, {
+        fprintf(stdout, "%s=%s\n", key, val);
+    });
+    fprintf(stdout, "<--- EOQ\n");
+    fflush(stdout);
+}
 
 
 char **file_set_val(char *filename, char *key, char *val) {
@@ -243,6 +271,7 @@ char **file_set_val(char *filename, char *key, char *val) {
     } else {
         free(keycpy);
     }
+    debug_print_query(ini);
     write_ini(filename, ini);
     return 0;
 }
@@ -255,6 +284,9 @@ char *get_val(state_t *state, char *key_to_find) {
         if (!state->queries[i]) {
             state->queries[i] = parse_query(BODY());
         }
+        if (!state->queries[i]) {
+            return _NULL;
+        }
         KV_FOREACH(state->queries[i], {
             /*printf("%s %s\n", key, key_to_find);*/
             if (!strcmp(key, key_to_find)) {
@@ -262,7 +294,16 @@ char *get_val(state_t *state, char *key_to_find) {
             }
         });
     }
+    dprintf(2, "Getval without return should never be reached\n");
+    assert(0);
 }
+
+char *file_get_val(char *filename, char *key_to_find) {
+    char **ini = read_ini(filename);
+    return get_val(ini, key_to_find);
+}
+
+
 
 FILE *cookie_file(char *cookie) {
     char cookie_dir[1032];
@@ -316,6 +357,9 @@ state_t *init_state(char *current_cookie, char *query_string) {
     }
     state->nonce = rand_str(16);
     state->route = "";
+    for (i = 0; i < sizeof(state->queries) / sizeof(state->queries[0]); i++) {
+        state->queries[i] = 0;
+    }
     if (query_string) {
         state->queries[0] = parse_query(query_string);
 
@@ -337,7 +381,9 @@ state_t *init_state(char *current_cookie, char *query_string) {
 #if defined(TEST_RAND)
 int main() {
 
+    printf("testing strlen of rand_str(16)\n");
     assert(strlen(rand_str(16)) == 16);
+    printf("testing alphanumericity of rand_str(16)\n");
     assert(is_alphanumeric(rand_str(1)[0]));
     printf("%s\n", rand_str(16));
     return 0;
@@ -369,21 +415,43 @@ int main() {
 }
 #elif defined(TEST_VAL)
 int main() {
-    state_t *state = init_state(_NULL);
+    state_t *state = init_state(_NULL, _NULL);
+    char *testval = get_val(state, "test");
+    if (!testval) {
+        printf("No val read!");
+        return 0;
+    }
+    printf("%s\n", testval);
     printf("%s\n", get_val(state, "test"));
-    printf("%s\n", get_val(state, "test2"));
 }
 #elif defined(TEST_READLINE)
 int main() {
-    printf("%s"NL, BODY_NEXT();
+    char *body = BODY();
+    if (body) {
+        printf("%s\n"NL, body);
+    } else {
+        printf("No body read\n");
+    }
+    return 0;
 }
 #elif defined(TEST_HASH)
 int main() {
     printf("%s"NL, hash("test"));
+    return 0;
 }
 #elif defined(TEST_INI_FILES)
 int main() {
-    file_set_val("testfile", "testkey", "testval");
+    char *testfile = "testfile.tmp";
+    char *key = "testkey";
+    char *val = "testval";
+    file_delete(testfile);
+    FILE *f = file_create_atomic(testfile);
+    fclose(f);
+    file_set_val(testfile, key, val);
+    char *read_val = file_get_val(testfile, key);
+    assert(!strcmp(val, read_val));
+    file_delete(testfile);
+    return 0;
 }
 #else /* No TEST */
 
@@ -476,22 +544,8 @@ void cookie_write(state_t *state, char *key, char *val) {
 
 }
 
-#define O_WRONLY	     01
-#define O_CREAT	   0100	/* Not fcntl.  */
-#define O_EXCL		   0200	/* Not fcntl.  */
-#define S_IWUSR	0200	/* Write by owner.  */
-#define	S_IRUSR	0400	/* Read by owner.  */
-
-#define	EEXIST		17	/* File exists */
-
-FILE *file_create_atomic(char *filename) {
-
-    int fd = open(filename, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
-    if (fd < 0) {
-        fprintf(2, "Could not create file %s\n", filename);
-        return _NULL;
-    }
-    return fdopen(fd);
+void file_delete(char *filename) {
+    remove(filename);
 }
 
 int user_create(char *name, char *pass_hash) {

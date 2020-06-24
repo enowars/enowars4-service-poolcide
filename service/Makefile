@@ -1,5 +1,5 @@
 CC=gcc
-override CFLAGS += -g -m32 -fno-omit-frame-pointer -std=c89 -D_FORTIFY_SOURCE=2 -O1 -w -Wformat -Wno-implicit-function-declaration -Wno-format-security -Wl,-z,relro -Wl,-z,now -fstack-protector-strong -fsanitize=address -Wno-deprecated-declarations -Wno-int-conversion
+override CFLAGS += -g -m32 -fno-omit-frame-pointer -std=c89 -D_FORTIFY_SOURCE=2 -O1 -Wformat -Wno-implicit-function-declaration -Wno-format-security -Wl,-z,relro -Wl,-z,now -fstack-protector-strong -fsanitize=address -Wno-deprecated-declarations -Wno-int-conversion
 
 ODIR=./src
 TDIR=./templates
@@ -29,3 +29,44 @@ poolcide: $(ODIR)/poolcide.o
 
 run: poolcide
 	./poolcgid.py
+
+test_rand:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_RAND"'
+	./cgi-bin/poolcide
+	make clean
+test_query_parser:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_QUERY_PARSER"'
+	echo "test=success" | ./cgi-bin/poolcide
+	make clean
+test_alpha:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_ALPHA" -w'
+	./cgi-bin/poolcide
+	make clean
+test_val:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_VAL" -w'
+	./cgi-bin/poolcide
+	make clean
+test_readline:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_READLINE" -w'
+	echo "line" | ./cgi-bin/poolcide
+	make clean
+test_hash:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_HASH" -w'
+	./cgi-bin/poolcide
+	make clean
+test_ini_files:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_INI_FILES" -w'
+	./cgi-bin/poolcide
+	make clean
+
+tests: test_rand test_query_parser test_alpha test_val test_readline test_hash test_ini_files 
+	@echo ""
+	@echo "[*] All tests done"
+	
