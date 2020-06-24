@@ -463,14 +463,24 @@ int main() {
 int main() {
     char *testfile = "testfile.tmp";
     char *key = "testkey";
+    char *key2 = "testkey2";
     char *val = "testval";
     file_delete(testfile);
     FILE *f = file_create_atomic(testfile);
     fclose(f);
     file_set_val(testfile, key, val);
+    
     system("cat testfile.tmp");
     char *read_val = file_get_val(testfile, key);
     assert(!strcmp(val, read_val));
+
+    file_set_val(testfile, "some", "value");
+    file_set_val(testfile, key2, val);
+    file_set_val(testfile, "someother", "value");
+    read_val = file_get_val(testfile, key);
+    assert(strcmp(val, read_val));
+    assert(!strcmp(val, read_val2));
+
     file_delete(testfile);
     return 0;
 }
