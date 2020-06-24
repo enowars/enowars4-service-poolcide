@@ -9,6 +9,7 @@
     abort();      \
                   \
   } while (0);
+\
 #define FATAL(x)          \
   do {                    \
                           \
@@ -16,6 +17,7 @@
     abort();              \
                           \
   } while (0);
+\
 #define FILE void
 #define INI_LEN_MAX (256)
 #define DELIM ('=')
@@ -76,6 +78,7 @@ extern FILE *stderr;
       KV_FOREACH(query, {block});                   \
                                                     \
     } while (1);                                    \
+                                                    \
     fclose(file);                                   \
                                                     \
   } while (0);
