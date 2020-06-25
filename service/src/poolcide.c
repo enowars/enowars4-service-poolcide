@@ -6,18 +6,30 @@
   do {            \
                   \
     perror(x);    \
+    fflush(stdout);\
+    fflush(stderr); \
     abort();      \
                   \
   } while (0);
-\
-#define FATAL(x)          \
+
+#define FATAL(x...)       \
   do {                    \
                           \
-    if (x) { printf(x); } \
+    LOG(x); }             \
+    fflush(stdout);\
+    fflush(stderr); \
     abort();              \
                           \
   } while (0);
-\
+
+#define LOG(x...)       \
+  do {                  \
+                        \
+    fprintf(stderr, x); \
+    fflush(stdout);     \
+                        \
+  } while (0);
+
 #define FILE void
 #define INI_LEN_MAX (256)
 #define DELIM ('=')
@@ -69,6 +81,7 @@ extern FILE *stderr;
 #define FILE_KV_FOREACH(filename, block)            \
   do {                                              \
                                                     \
+                                                    \
     FILE *file = fopen(filename, "r");              \
     if (!file) { PFATAL("Couldn't open kv file"); } \
     do {                                            \
@@ -78,6 +91,7 @@ extern FILE *stderr;
       KV_FOREACH(query, {block});                   \
                                                     \
     } while (1);                                    \
+                                                    \
                                                     \
     fclose(file);                                   \
                                                     \
@@ -201,8 +215,9 @@ char get_rand_alphanumberic() {
    The others are stripped. */
 char *dup_alphanumeric(char *str) {
 
-  int   i;
-  int   retpos = 0;
+  int i;
+  int retpos = 0;
+  if (!str) { return _NULL; }
   char *ret = calloc(1, 1024);
   for (i = 0; str[i]; i++) {
 
@@ -234,7 +249,7 @@ char *rand_str(int len) {
 char *readline(FILE *f) {
 
   char buf[1024];
-  if (!((f && fgets(buf, sizeof(buf), f)) || gets(buf))) {
+  if (!(!f ? gets(buf) : fgets(buf, sizeof(buf), f))) {
 
     /* Looks like EOF to me */
     return _NULL;
@@ -306,6 +321,7 @@ char **read_ini(char *filename) {
   char **ini = calloc(1, 256);
   char * keys[128] = {0};
   int    linec = 0;
+
   FILE_KV_FOREACH(filename, {
 
     key_exists = 0;
@@ -425,8 +441,7 @@ char **file_set_val(char *filename, char *key_to_write, char *val_to_write) {
 
 }
 
-char *get_val(state_t *state, char *key_to_find, char *default_val,
-              int blocking) {
+char *get_val(state_t *state, char *key_to_find) {
 
   int i;
 
@@ -435,7 +450,6 @@ char *get_val(state_t *state, char *key_to_find, char *default_val,
     /*printf("p: %d %p"NL, i, state->queries[i]);*/
     if (!state->queries[i]) {
 
-      if (!blocking) { return default_val; }
       state->queries[i] = parse_query(BODY());
 
     }
@@ -460,11 +474,9 @@ char *file_get_val(char *filename, char *key_to_find, char *default_val) {
   char **ini = read_ini(filename);
   KV_FOREACH(ini, {
 
-    /*printf("%s %s\n", key, key_to_find);*/
     if (!strcmp(key, key_to_find)) { return val; }
 
   });
-
   return default_val;
 
 }
@@ -487,7 +499,7 @@ int write_headers(state_t *state) {
       "Set-Cookie: identity=");
   printf(state->cookie);
   printf(NL);
-
+  
   return 0;
 
 }
@@ -506,18 +518,26 @@ state_t *init_state(char *current_cookie, char *query_string) {
 
   int      i;
   state_t *state = calloc(sizeof(state_t), 1);
-  if (!current_cookie) {
+  char *   new_cookie = dup_alphanumeric(current_cookie);
+  if (new_cookie && !new_cookie[0]) {
 
-    /* A new user, welcome! :) */
-    state->cookie = rand_str(COOKIE_LEN);
-
-  } else {
-
-    state->cookie = dup_alphanumeric(current_cookie);
+    free(new_cookie);
+    new_cookie = _NULL;
 
   }
 
+  if (!new_cookie) {
+
+    /* A new browser, welcome! :) */
+    new_cookie = rand_str(COOKIE_LEN);
+
+  }
+
+  state->cookie = new_cookie;
   state->cookie_loc = loc_cookie(state->cookie);
+
+  fprintf(stderr, "Creating cookie %s\n", state->cookie_loc);
+  fflush(stderr);
 
   FILE *file = file_create_atomic(state->cookie_loc);
   if (file) {
@@ -527,17 +547,19 @@ state_t *init_state(char *current_cookie, char *query_string) {
 
   }
 
-  state->username = cookie_get_val(state, "username");
-  state->user_loc = loc_user(state->username);
-  state->logged_in = cookie_get_val(state, "logged_in");
+  state->username = cookie_get_val(state, "username", "New User");
+  if (state->username) {
 
-  state->nonce = rand_str(16);
-  state->route = "";
-  for (i = 0; i < sizeof(state->queries) / sizeof(state->queries[0]); i++) {
-
-    state->queries[i] = 0;
+    LOG("User %s is back!\n", state->username);
+    state->user_loc = loc_user(state->username);
 
   }
+
+  state->logged_in = cookie_get_val(state, "logged_in", 0);
+  LOG("User %s logged.\n", state->logged_in ? "": "not");
+
+  state->nonce = rand_str(16);
+  state->route = "index";
 
   if (query_string) {
 
@@ -548,6 +570,9 @@ state_t *init_state(char *current_cookie, char *query_string) {
       if (!strcmp(key, "route")) { state->route = val; }
 
     })
+    if (state->route[0]) {
+      LOG("Route: %s\n", state->route);
+    }
 
   } else {
 
@@ -671,6 +696,15 @@ int main() {
   assert(!strcmp(val2, read_val));
 
   file_delete(testfile);
+
+  printf("testing empty ini. Query should be empty:\n");
+  fflush(stdout);
+  FILE *file = file_create_atomic(testfile);
+  assert(file);
+  debug_print_query(read_ini(testfile));
+  assert(!file_get_val(testfile, "test", _NULL));
+  remove(testfile);
+
   return 0;
 
 }
@@ -688,7 +722,7 @@ int main() {
 
 int main() {
 
-  #ifndef DEBUG
+  #ifdef RELEASE
   alarm(15);
   #endif
 
@@ -754,7 +788,7 @@ int handle_get(state_t *state) {
   /*int cf = cookie_file(cookie);*/
   /*read_ini(USER_DIR + username);*/
 
-  char *username = "Testuser";
+  char *username = state->username;
   printf(
 #include "body_index.templ"
   );
@@ -765,7 +799,7 @@ int handle_get(state_t *state) {
 
 int handle_post(state_t *state) {
 
-  printf("%s", get_val(state, "route", "index", 0));
+  /*TODO Handle post */
   return 0;
 
 }
@@ -799,9 +833,8 @@ int user_create(char *name, char *pass_hash) {
   if (!file) {
 
     /* failure */
-    /*if (errno == EEXIST) {
-
-        /* the file probably already existed */
+    /*if (errno == EEXIST) {*/
+    /* the file probably already existed */
     perror("Could not create user entry.");
     return 0;
     /*}*/
@@ -819,11 +852,11 @@ int user_create(char *name, char *pass_hash) {
 
 int handle_register(state_t *state) {
 
-  char *username = dup_alphanumeric(get_val(state, "username", "", 1));
+  char *username = dup_alphanumeric(get_val(state, "username"));
   if (!strlen(username)) { goto invalid_username; }
   cookie_set_val(state, "logged_in", "0");
   cookie_set_val(state, "username", username);
-  char *pass_hash = get_val(state, "password", "", 1);
+  char *pass_hash = get_val(state, "password");
   if (!user_create(username, pass_hash)) { goto invalid_username; }
   state->username = username;
   state->user_loc = loc_user(state->username);
@@ -853,11 +886,11 @@ int cookie_remove(state) {
 int handle_login(state_t *state) {
 
   cookie_set_val(state, "logged_in", 0);
-  char *username = dup_alphanumeric(get_val(state, "username", "", 1));
+  char *username = dup_alphanumeric(get_val(state, "username"));
   if (strlen(username) < 1) { goto user_not_found; }
   state->user_loc = loc_user(username);
   cookie_set_val(state, "username", username);
-  char *login_pw_hash = hash(get_val(state, "password", _NULL, 1));
+  char *login_pw_hash = hash(get_val(state, "password"));
   char *stored_pw_hash = get_user_val(state, "pass_hash", _NULL);
   if (!stored_pw_hash) { goto user_not_found; }
   if (!strcmp(login_pw_hash, stored_pw_hash)) {
