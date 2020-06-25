@@ -4,6 +4,34 @@ TEMPLATE(
   <h1>Hello {{username%s}}</h1>
   <p id=pyramid style='font-family: "Lucida Console", Monaco, monospace;' />
 
+  <form action="poolcide?route=login" method="post">
+    <ul> 
+    <li>
+    <label for="name">Username</label>
+    <input type="text" id="username" name="username" />
+    </li>
+    <li>
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" />
+    </li>
+    </ul>
+    <button type="submit">login</button>
+  </form>
+
+  <form action="poolcide?route=register" method="post">
+    <ul> 
+    <li>
+    <label for="name">Username</label>
+    <input type="text" id="username" name="username" />
+    </li>
+    <li>
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password" />
+    </li>
+    </ul>
+    <button type="submit">register</button>
+  </form>
+
 <script>
 
   // Some lovely codegolf from https://twitter.com/aemkei/status/1275169003028336646?s=20

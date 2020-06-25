@@ -70,8 +70,14 @@ test_escape:
 	make poolcide 'CFLAGS="-DTEST_ESCAPE" -w'
 	./cgi-bin/poolcide
 	make clean
+test_cookie_parser:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_COOKIE_PARSER" -w'
+	./cgi-bin/poolcide
+	make clean
 
-tests: test_escape test_ini_files test_rand test_query_parser test_alpha test_val test_readline test_hash
+
+tests: test_cookie_parser test_escape test_ini_files test_rand test_query_parser test_alpha test_val test_readline test_hash
 	@echo ""
 	@echo "[*] All tests done"
 	

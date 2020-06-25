@@ -2,31 +2,34 @@
 
 #define RAND_LENGTH (16)
 #define _NULL ((void *)0)
-#define PFATAL(x) \
-  do {            \
-                  \
-    perror(x);    \
-    fflush(stdout);\
+#define PFATAL(x)   \
+  do {              \
+                    \
+    perror(x);      \
+    fflush(stdout); \
     fflush(stderr); \
-    abort();      \
-                  \
+    abort();        \
+                    \
   } while (0);
 
-#define FATAL(x...)       \
-  do {                    \
-                          \
-    LOG(x); }             \
-    fflush(stdout);\
-    fflush(stderr); \
-    abort();              \
-                          \
-  } while (0);
+#define FATAL(x...) \
+  do {              \
+                    \
+    LOG(x);         \
+                    \
+  }                 \
+  fflush(stdout);   \
+  fflush(stderr);   \
+  abort();          \
+                    \
+  }                 \
+  while (0)         \
+    ;
 
 #define LOG(x...)       \
   do {                  \
                         \
-    fprintf(stderr, x); \
-    fflush(stdout);     \
+    dprintf(2, x); \
                         \
   } while (0);
 
@@ -35,6 +38,7 @@
 #define DELIM ('=')
 #define KV_SPLIT ('&')
 #define KV_START ('?')
+#define COOKIE_NAME "poolcode"
 #define NL "\r\n"
 #define QUERY_COUNT (32)
 
@@ -80,7 +84,6 @@ extern FILE *stderr;
 
 #define FILE_KV_FOREACH(filename, block)            \
   do {                                              \
-                                                    \
                                                     \
     FILE *file = fopen(filename, "r");              \
     if (!file) { PFATAL("Couldn't open kv file"); } \
@@ -184,10 +187,11 @@ FILE *file_create_atomic(char *filename) {
   int fd = open(filename, O_CREAT | O_WRONLY | O_EXCL, S_IRUSR | S_IWUSR);
   if (fd < 0) {
 
-    fprintf(stderr, "Could not create file %s\n", filename);
+    perror(filename);
     return _NULL;
 
   }
+  fprintf(stderr, "Created file: %s\n", filename);
 
   return fdopen(fd, "w");
 
@@ -265,9 +269,13 @@ char *readline(FILE *f) {
 char **parse_query(char *str) {
 
   int i;
+
   if (!str) { return _NULL; }
   int content_len = strlen(str);
-  if (!content_len) { return _NULL; }
+  if (!content_len) { 
+    static char *empty[2] = {0};
+    return empty; 
+  }
   char **ret = calloc(1, (content_len)*4 + 8);
   char * contents = strdup(str);
   int    parsing_key = 1;
@@ -448,11 +456,7 @@ char *get_val(state_t *state, char *key_to_find) {
   for (i = 0;; i++) {
 
     /*printf("p: %d %p"NL, i, state->queries[i]);*/
-    if (!state->queries[i]) {
-
-      state->queries[i] = parse_query(BODY());
-
-    }
+    if (!state->queries[i]) { state->queries[i] = parse_query(BODY()); }
 
     if (!state->queries[i]) { return _NULL; }
     KV_FOREACH(state->queries[i], {
@@ -477,6 +481,7 @@ char *file_get_val(char *filename, char *key_to_find, char *default_val) {
     if (!strcmp(key, key_to_find)) { return val; }
 
   });
+
   return default_val;
 
 }
@@ -496,10 +501,10 @@ int write_headers(state_t *state) {
 
       "Content-Type: text/html" NL
 
-      "Set-Cookie: identity=");
+      "Set-Cookie: "COOKIE_NAME"=");
   printf(state->cookie);
-  printf(NL);
-  
+  printf("; Secure; HttpOnly"NL);
+
   return 0;
 
 }
@@ -536,9 +541,6 @@ state_t *init_state(char *current_cookie, char *query_string) {
   state->cookie = new_cookie;
   state->cookie_loc = loc_cookie(state->cookie);
 
-  fprintf(stderr, "Creating cookie %s\n", state->cookie_loc);
-  fflush(stderr);
-
   FILE *file = file_create_atomic(state->cookie_loc);
   if (file) {
 
@@ -547,16 +549,18 @@ state_t *init_state(char *current_cookie, char *query_string) {
 
   }
 
-  state->username = cookie_get_val(state, "username", "New User");
+  state->username = cookie_get_val(state, "username", _NULL);
   if (state->username) {
 
     LOG("User %s is back!\n", state->username);
     state->user_loc = loc_user(state->username);
 
+  } else {
+    state->username = "New User";
   }
 
   state->logged_in = cookie_get_val(state, "logged_in", 0);
-  LOG("User %s logged.\n", state->logged_in ? "": "not");
+  LOG("User %s logged in.\n", state->logged_in ? "" : "not");
 
   state->nonce = rand_str(16);
   state->route = "index";
@@ -564,15 +568,13 @@ state_t *init_state(char *current_cookie, char *query_string) {
   if (query_string) {
 
     state->queries[0] = parse_query(query_string);
-
     KV_FOREACH(state->queries[0], {
 
       if (!strcmp(key, "route")) { state->route = val; }
 
     })
-    if (state->route[0]) {
-      LOG("Route: %s\n", state->route);
-    }
+
+    if (state->route[0]) { LOG("Route: %s\n", state->route); }
 
   } else {
 
@@ -581,6 +583,62 @@ state_t *init_state(char *current_cookie, char *query_string) {
   }
 
   return state;
+
+}
+
+char *parse_cookie(char *cookies) {
+
+  int i;
+
+  if (!cookies) {
+    return _NULL;
+  }
+  int content_len = strlen(cookies);
+  if (!content_len) { 
+    return _NULL;
+  }
+
+  char *contents = strdup(cookies);
+  int    parsing_key = 1;
+  int    current_len = 0;
+  char *current_key = contents;
+  char *current_val = _NULL;
+  int val_count = 0;
+
+  /* Strip tailing newline */
+  if (contents[content_len - 1] == '\n') {
+
+    content_len = content_len - 1;
+    contents[content_len] = '\0';
+
+  }
+
+  for (i = 0; i < content_len; i++) {
+    if (contents[i] == ';') {
+      contents[i] = '\0';
+      if(parsing_key) {
+        current_key = contents + i + 1;
+        current_val = 0;
+      } else {
+        if (!strcmp(current_key, COOKIE_NAME)) {
+          return dup_alphanumeric(current_val);
+        }
+        parsing_key = 1;
+        current_key = contents + i + 1;
+        current_val = _NULL;
+      }
+    } else if (parsing_key && contents[i] == ' ') {
+      current_key = contents + i + 1;
+    } else if (parsing_key && (contents[i] == DELIM || contents[i] == ' ')) {
+      contents[i] = '\0';
+      parsing_key = 0;
+      current_val = contents + i + 1;
+    }
+  }
+  if (!strcmp(current_key, COOKIE_NAME)) {
+    return dup_alphanumeric(current_val);
+  }
+  return _NULL;
 
 }
 
@@ -598,6 +656,18 @@ int main() {
   return 0;
 
 }
+#elif defined(TEST_COOKIE_PARSER)
+int main() {
+
+  parse_cookie("cookie");
+  printf(parse_cookie(COOKIE_NAME"=testcookie;"));
+  assert(!strcmp(parse_cookie(COOKIE_NAME"=testcookie;"), "testcookie"));
+  assert(!strcmp(parse_cookie(COOKIE_NAME"=testcookie; "), "testcookie"));
+  assert(!strcmp(parse_cookie("test=fun; HTTPOnly; "COOKIE_NAME"=testcookie; "), "testcookie"));
+  return 0;
+
+}
+
 
 #elif defined(TEST_QUERY_PARSER)
 int main() {
@@ -720,6 +790,7 @@ int main() {
 
 #else                                                            /* No TEST */
 
+
 int main() {
 
   #ifdef RELEASE
@@ -727,13 +798,15 @@ int main() {
   #endif
 
   /*https://www.openroad.org/cgi-bin/cgienvdemo*/
-  char *current_cookie = getenv("HTTP_COOKIE");
+  char *current_cookies = getenv("HTTP_COOKIE");
   char *request_method = getenv("REQUEST_METHOD");
   char *query_string = getenv("QUERY_STRING");
   /* Webserver name to this binary */
   char *script_name = getenv("SCRIPT_NAME");
 
-  state_t *state = init_state(current_cookie, query_string);
+  char **cookie_kv = parse_query(current_cookies);
+
+  state_t *state = init_state(current_cookies, query_string);
   write_headers(state);
 
   /* header end */
@@ -748,8 +821,7 @@ int main() {
 
   }
 
-  dprintf(2, "%s %s %s %s", request_method, state->route, query_string,
-          script_name);
+  LOG("%s %s - %s %s \n", request_method, state->route, query_string, script_name);
 
   if ((request_method && !strcmp(request_method, "GET")) ||
       !strcmp(state->route, "")) {
