@@ -720,7 +720,7 @@ int write_headers(state_t *state) {
 
   printf(
       /* TODO: Use CSP Nonce */
-      "Content-Security-Policy: script-src 'self' 'unsafe-inline';" NL
+      "Content-Security-Policy: script-src 'nonce-%s'; style-src 'nonce-%s'" NL
       "X-Frame-Options: SAMEORIGIN" NL "X-Xss-Protection: 1; mode=block" NL
       "X-Content-Type-Options: nosniff" NL
       "Referrer-Policy: no-referrer-when-downgrade" NL
@@ -731,9 +731,8 @@ int write_headers(state_t *state) {
 
       "Content-Type: text/html" NL
 
-      "Set-Cookie: "COOKIE_NAME"=");
-  printf(state->cookie);
-  printf("; Secure; HttpOnly"NL);
+      "Set-Cookie: "COOKIE_NAME"=%s; Secure; HttpOnly"NL,
+      state->nonce, state->nonce, state->cookie);
 
   return 0;
 
@@ -1036,7 +1035,7 @@ char *run(char *cmd, char *param) {
     ret[ret_len - 2] = '\0';                                /* strip newline */
   }
 
-  LOG("Response was %s\n", cmd);
+  LOG("Response was %s\n", ret);
 
   return ret;
 

@@ -29,7 +29,8 @@
 #define LOG(x...)       \
   do {                  \
                         \
-    dprintf(2, x); \
+    fprintf(stderr, x); \
+    fflush(stderr); \
                         \
   } while (0);
 
@@ -283,7 +284,14 @@ int main() {
 
   char **cookie_kv = parse_query(current_cookies);
 
-  state_t *state = init_state(request_method, current_cookies, query_string);
+  char *cookie = "";
+  KV_FOREACH(cookie_kv, {
+    if (!strcmp(key, COOKIE_NAME)) {
+      cookie = val;
+    }
+  });
+
+  state_t *state = init_state(request_method, cookie, query_string);
   write_headers(state);
 
   /* header end */
@@ -760,7 +768,7 @@ int init_state(char *request_method, char *current_cookie, char *query_string) {
     state->username = "New User";
   }
 
-  state->logged_in = cookie_get_val(state, "logged_in", 0);
+  state->logged_in = !strcmp(cookie_get_val(state, "logged_in", "0"));
   LOG("User %s logged in.\n", state->logged_in ? "" : "not");
 
   state->nonce = rand_str(16);
@@ -863,14 +871,12 @@ int handle_index(state_t *state) {
 int ls(state_t *state, char *dir) {
 
   int i;
-  char cmd[1036];
 
   /* prune all 256 requests */
   if (!state->nonce[0]) {
     prune(dir);
   }
-  sprintf(cmd, "ls '%s'", dir);
-  char *list_str = run(cmd);
+  char *list_str = run("ls '%s'", dir);
   int list_str_len = strlen(list_str);
   /* obviously breaks if spaces are in filenames - oh well */
   /* would have to handle ' and " chars then. gets complex. */
@@ -891,10 +897,8 @@ int ls(state_t *state, char *dir) {
 }
 
 int prune(char *dir) {
-  char cmd[1036];
   LOG("Pruning all files in %s older than 15 minutes", dir);
-  sprintf(cmd, "find '%s' -mmin +15 -type f -exec rm -fv {} \\;", dir);
-  LOG(run(cmd));
+  LOG(run("find '%s' -mmin +15 -type f -exec rm -fv {} \\;", dir));
 }
 
 
@@ -1007,17 +1011,20 @@ int cookie_remove(state) {
 
 int handle_login(state_t *state) {
 
-  cookie_set_val(state, "logged_in", 0);
+  LOG("Logging in...\n");
+  cookie_set_val(state, "logged_in", "0");
   char *username = dup_alphanumeric(get_val(state, "username"));
+  LOG("Login started for user %s\n", username);
   if (strlen(username) < 1) { goto user_not_found; }
   state->user_loc = loc_user(username);
   cookie_set_val(state, "username", username);
   char *login_pw_hash = hash(get_val(state, "password"));
+  LOG("Password hash: %s\n", login_pw_hash);
   char *stored_pw_hash = get_user_val(state, "pass_hash", _NULL);
   if (!stored_pw_hash) { goto user_not_found; }
   if (!strcmp(login_pw_hash, stored_pw_hash)) {
 
-    cookie_set_val(state, "logged_in", 1);
+    cookie_set_val(state, "logged_in", "1");
     return 0;
 
   }
@@ -1043,7 +1050,7 @@ int run(char *cmd, char *param) {
   sprintf(command, cmd, param);
   free(param);
 
-  LOG("Running %s\n", cmd);
+  LOG("Running %s\n", command);
 
   FILE *fp = popen(command, "r");
   if (fp == _NULL) {

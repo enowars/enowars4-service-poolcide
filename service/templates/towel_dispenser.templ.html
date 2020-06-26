@@ -18,7 +18,7 @@ TEMPLATE(
     <p> today.</p>
     <p>BTW.: please make sure you dont't run poolcide too far away from a pool (for example behind a http proxy)</p>
 
-<script>
+<script nonce={{state->nonce%s}}>
     if ("{{towel_token%s}}") {
         token.innerHTML = `<p>Your towel with the ID {{towel_token%s}} was reserved.</p>`
     }

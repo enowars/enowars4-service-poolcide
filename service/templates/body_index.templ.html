@@ -39,7 +39,7 @@ TEMPLATE(
 
   <code id=pyramid style='font-family: "Lucida Console", Monaco, monospace;' />
 
-<script>
+<script nonce="{{state->nonce%s}}">
 
   // Some lovely codegolf from https://twitter.com/aemkei/status/1275169003028336646?s=20
   for(o=i=2020;i--;)o+=i%63?i&i/32&&'_':`
