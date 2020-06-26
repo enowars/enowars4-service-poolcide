@@ -1,5 +1,3 @@
-/*#include "list.h"*/
-
 #define RAND_LENGTH (16)
 #define _NULL ((void *)0)
 #define PFATAL(x)   \
@@ -122,6 +120,8 @@ extern FILE *stderr;
 /* Templating in C is eas-C */
 #define TEMPLATE(x) #x
 
+char empty_list[2][2] = {0};
+
 typedef struct state {
 
   char *cookie;
@@ -145,6 +145,7 @@ typedef struct state {
  */
 
 int main() {
+
 
 /* run tests using
    make CFLAGS='-DTEST_RAND'
@@ -501,8 +502,7 @@ int parse_query(str) {
   int content_len = strlen(str);
   if (!content_len) {
 
-    static char *empty[2] = {0};
-    return empty;
+    return empty_list;
 
   }
 
@@ -940,10 +940,10 @@ int ls(state_t *state, char *dir) {
   int   list_str_len = strlen(list_str);
   /* obviously breaks if spaces are in filenames - oh well */
   /* would have to handle ' and " chars then. gets complex. */
-  char **list = calloc(sizeof(char *), list_str_len / 2 + 1);
   if (!list_str_len) {
-    return list;
+    return empty_list;
   }
+  char **list = calloc(sizeof(char *), list_str_len / 2 + 1);
   int    list_pos = 0;
   list[list_pos++] = list_str;
   for (i = 0; i < list_str_len; i++) {
@@ -982,14 +982,14 @@ int prune(char *dir) {
 
 }
 
-int build_own_towels(state_t *state) {
+char **own_towel_list(state_t *state) {
 
   int i;
 
   char *own_towels = get_user_val(state, "towels", "");
   int own_towel_len = strlen(own_towels);
   if (!own_towel_len) {
-    return "";
+    return empty_list;
   }
   char **own_towel_list = calloc(sizeof(char *), strlen(own_towels) / 2);
   int own_towel_pos = 0;
@@ -1000,11 +1000,24 @@ int build_own_towels(state_t *state) {
       own_towel_list[own_towel_pos++] = own_towels+1;
     }
   }
+  return own_towel_list;
+
+}
+
+
+int render_own_towels(state_t *state) {
+
+  int i;
+
+  char **towel_list = own_towel_list(state);
+  if (!towel_list || !towel_list[0]) {
+    return "";
+  }
   return render_towel_template(state, own_towel_list);
 
 }
 
-int build_towels(state_t *state) {
+int render_all_towels(state_t *state) {
 
   int i;
 
@@ -1250,8 +1263,8 @@ int handle_reserve(state_t *state) {
   fclose(file);
 
   char *towel_id_enc = enc_towel_id(towel_id);
-  char *own_towels = build_own_towels(state);
-  char *towels = build_towels(state);
+  char *own_towels = render_own_towels(state);
+  char *towels = render_all_towels(state);
 
   printf(
 #include <towel_dispenser.templ>
@@ -1287,8 +1300,8 @@ int handle_dispense(state_t *state) {
   char *color = "";
 
   char *towel_id_enc = enc_towel_id(towel_id);
-  char *own_towels = build_own_towels(state);
-  char *towels = build_towels(state);
+  char *own_towels = render_own_towels(state);
+  char *towels = render_all_towels(state);
 
   printf(
 #include <towel_dispenser.templ>
@@ -1313,4 +1326,3 @@ int add_priority_towel_for(char *username, char *towel_token) {
   }
 
 }
-

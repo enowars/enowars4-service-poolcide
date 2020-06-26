@@ -3,8 +3,4 @@ __pycache__
 *.o
 *.templ
 poolcide
-./data/caddy
-./data/users
-./data/cookies
-data/cookies
 age
