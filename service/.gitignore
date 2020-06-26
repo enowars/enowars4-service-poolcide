@@ -1,5 +1,5 @@
-# exclude everything
 data/**/*
-
-# exception to the rule
 !data/**/.gitkeep 
+
+cgi-bin/poolcide
+

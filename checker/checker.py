@@ -5,7 +5,7 @@ from enochecker.utils import sha256ify
 AGE_PUBLIC_KEY = "age1mngxnym3sz9t8jtyfsl43szh4pg070g857khq6zpw3h9l37v3gdqs2nrlx"
 AGE_SECRET_KEY = "AGE-SECRET-KEY-1XCKQZWRQ6AH3MUZGHH29M37CF2CAC5U4TLZA9WRSTHNG9UH02LSS8FNDUY"
 
-class PoolsideChecker(BaseChecker):
+class PoolcideChecker(BaseChecker):
     port = 9001
     flag_count = 1
     noise_count = 1
@@ -36,7 +36,7 @@ class PoolsideChecker(BaseChecker):
         pass
 
 
-app = PoolsideChecker.service
+app = PoolcideChecker.service
 
 if __name__ == "__main__":
-    run(PoolsideChecker)
+    run(PoolcideChecker)
