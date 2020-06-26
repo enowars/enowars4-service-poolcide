@@ -22,7 +22,7 @@ $(ODIR)/%.o: $(SRCDIR)/%.c templates
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ cgi-bin/poolcide $(TDIR)/*.templ
 
-templates: $(TDIR)/body_index.templ $(TDIR)/head.templ $(TDIR)/user_not_found.templ
+templates: $(TDIR)/error.templ $(TDIR)/body_index.templ $(TDIR)/head.templ $(TDIR)/towel_dispenser.templ $(TDIR)/user_not_found.templ
 
 poolcide: $(ODIR)/poolcide.o
 	$(CC) -o $(CGI_DIR)/$@ $^ $(CFLAGS) $(LIBS)
@@ -75,9 +75,13 @@ test_cookie_parser:
 	make poolcide 'CFLAGS="-DTEST_COOKIE_PARSER" -w'
 	./cgi-bin/poolcide
 	make clean
+test_towel_enc:
+	make clean
+	make poolcide 'CFLAGS="-DTEST_TOWEL_ENC" -w'
+	./cgi-bin/poolcide
+	make clean
 
-
-tests: test_cookie_parser test_escape test_ini_files test_rand test_query_parser test_alpha test_val test_readline test_hash
+tests: test_towel_enc test_cookie_parser test_escape test_ini_files test_rand test_query_parser test_alpha test_val test_readline test_hash
 	@echo ""
 	@echo "[*] All tests done"
 	

@@ -1,17 +1,25 @@
 FROM python:3.8-buster
 
-RUN apt-get update && apt-get install -y gcc-multilib
+RUN apt-get update && apt-get install -y gcc-multilib wget
 RUN useradd poolcide
 
 COPY . /poolcide
 WORKDIR /poolcide
 
+# downloading static age binary for private key crypto - age-encryption.org
+RUN wget https://github.com/FiloSottile/age/releases/download/v1.0.0-beta2/age-v1.0.0-beta2-linux-amd64.tar.gz \
+    && tar -xvf age-v1.0.0-beta2-linux-amd64.tar.gz \
+    && mv ./age ./age_dir && mv ./age_dir/age ./age && rm -rf ./age_dir \
+    && rm -rf age-*
+
+# building poolcide
 RUN make clean
 RUN make tests
 RUN make
 
 USER poolcide
 
+# POOL (hah, so funny!)
 EXPOSE 9001
 
 ENTRYPOINT ["python3", "poolcgid.py"]

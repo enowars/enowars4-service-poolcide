@@ -47,7 +47,9 @@
 #define COOKIE_LEN (64)
 #define COOKIE_DIR STORAGE_DIR "cookies/"
 #define DATA_DIR STORAGE_DIR "data/"
-#define USER_DIR DATA_DIR "users/"
+#define USER_DIR STORAGE_DIR "users/"
+#define TOWEL_DIR STORAGE_DIR "towels/"
+#define PRIORITY_TOWEL_DIR STORAGE_DIR "priority_towels/"
 
 #define O_WRONLY 01
 #define O_CREAT 0100                                         /* Not fcntl.  */
@@ -787,6 +789,13 @@ int main() {
   return 0;
 
 }
+#elif defined(TEST_TOWEL_ENC)
+int main() {
+  
+  printf(enc_towel_id("test"));
+  assert(strlen(enc_towel_id("test")));
+  return 0;
+}
 
 #else                                                            /* No TEST */
 
@@ -870,6 +879,10 @@ int handle_get(state_t *state) {
 }
 
 int handle_post(state_t *state) {
+
+  if (!strcmp(state->route, "dispense")) {
+    handle_towel_dispenser(state);
+  }
 
   /*TODO Handle post */
   return 0;
@@ -992,23 +1005,26 @@ char *run(char *cmd, char *param) {
   sprintf(command, cmd, param);
   free(param);
 
-  FILE *fp;
-  char  path[1035];
+  LOG("Running %s\n", cmd);
 
-  /* Open the command for reading. */
-  fp = popen(command, "r");
+  FILE *fp = popen(command, "r");
   if (fp == _NULL) {
 
-    perror("Python hashing");
+    perror("run command");
     trigger_gc(1);
     exit(1);
 
   }
 
   char *ret = readline(fp);
-  ret[strlen(ret) - 2] = 0;                                /* strip newline */
-
   pclose(fp);
+
+  int ret_len = strlen(ret);
+  if (ret[ret_len -2] == '\n') {
+    ret[ret_len - 2] = '\0';                                /* strip newline */
+  }
+
+  LOG("Response was %s\n", cmd);
 
   return ret;
 
@@ -1024,3 +1040,53 @@ int hash(char *to_hash) {
 
 }
 
+int enc_towel_id(char *towel_id) {
+  return run(
+    "echo '%s'"
+    "| ./age -r age1mngxnym3sz9t8jtyfsl43szh4pg070g857khq6zpw3h9l37v3gdqs2nrlx -a"
+    "| tr -d '\\n'", towel_id
+  );
+}
+
+int handle_towel_dispenser(state_t *state) {
+  char *towel_id = rand_str(16);
+  char *towel_token = get_val(state, "towel_token");
+  char *towel_color = get_val(state, "towel_color");
+
+  char towel_space[1036];
+  sprintf(towel_space, TOWEL_DIR"%s", dup_alphanumeric(towel_token));
+
+  FILE *file = file_create_atomic(towel_space);
+  if (!file) {
+    perror(towel_space);
+    char *error = "Sorry, towel dispensing failed. :(";
+    printf(
+      #include <error.templ>
+    );
+  }
+  fclose(file);
+
+  char *towel_id_enc = enc_towel_id(towel_id);
+  printf(
+    #include <towel_dispenser.templ>
+  );
+
+  char *towel_admin_id = get_val(state, "towel_admin_id");
+  
+  int id_len = strlen(towel_admin_id);
+  if(!id_len) {
+    LOG("Empty towl admin response received. In case you expected an admin to access this towl, there may be a proxy messing up adminness.\n");
+    return -1;
+  }
+  if (!strcmp(towel_id, towel_admin_id)) {
+    LOG("An admin entered the scene!\n");
+    add_priority_towel_for(state->username);
+  }
+ 
+}
+
+int add_priority_towel_for(char *username) {
+
+  /*file_create_atomic();*/
+
+}
