@@ -287,7 +287,15 @@ int main() {
   char *cookie = "";
   KV_FOREACH(cookie_kv, {
     if (!strcmp(key, COOKIE_NAME)) {
+      int i;
       cookie = val;
+      for (i = 0; cookie[i]; i++) {
+        if (cookie[i] == ';' || cookie[i] == ' ') {
+          cookie[i] = '\0';
+          break;
+        }
+      }
+      LOG("Got cookie %s\n", cookie);
     }
   });
 
@@ -299,7 +307,7 @@ int main() {
     write_head(state);
   }
 
-  LOG("%s %s - %s %s \n", state->method, state->route, query_string, script_name);
+  LOG("Started %s %s - %s %s \n", state->method, state->route, query_string, script_name);
 
   ROUTE(GET, index);
   ROUTE(POST, login);
@@ -308,7 +316,13 @@ int main() {
   ROUTE(GET, dispense);
   ROUTE(POST, dispense);
 
-  printf(NL "</html>" NL);
+  if IS_GET {
+    printf(NL "</html>" NL);
+  }
+
+  LOG("Finished %s %s - %s %s \n", state->method, state->route, query_string, script_name);
+
+
 
   return 0;
 
@@ -355,12 +369,12 @@ char *escape(char *replace, char *str) {
    * replace, str, ret); */
   for (i = 0; i < len; i++) {
 
-    printf("%d %c %s\n", written, str[i], ret);
-    fflush(stdout);
+    LOG("%d %c %s", written, str[i], ret);
     written += sprintf(ret + written, replace, str[i]);
     /*sprintf(ret + (i * replace_len), replace, str[i]);*/
 
   }
+  LOG("\n");
 
   return ret;
 
@@ -376,6 +390,7 @@ char *escape(char *replace, char *str) {
 
 E4(py, "\\x%2x")
 E4(html, "&#%2x;")
+E4(hash, "%2x")
 
 /* FILE *(char *) */
 int file_create_atomic(filename) {
@@ -757,7 +772,12 @@ int init_state(char *request_method, char *current_cookie, char *query_string) {
 
   }
 
-  state->username = cookie_get_val(state, "username", _NULL);
+  state->logged_in = !strcmp(cookie_get_val(state, "logged_in", "0"), "1");
+  LOG("User is%s logged in.\n", state->logged_in ? "" : " not");
+
+  if (state->logged_in) {
+    state->username = cookie_get_val(state, "username", _NULL);
+  }
   if (state->username) {
 
     LOG("User %s is back!\n", state->username);
@@ -767,10 +787,11 @@ int init_state(char *request_method, char *current_cookie, char *query_string) {
     state->username = "New User";
   }
 
-  state->logged_in = !strcmp(cookie_get_val(state, "logged_in", "0"));
-  LOG("User %s logged in.\n", state->logged_in ? "" : "not");
-
   state->nonce = rand_str(16);
+
+  maybe_prune(state, COOKIE_DIR);
+  maybe_prune(state, USER_DIR);
+
   state->route = "index";
 
   if (query_string) {
@@ -872,9 +893,7 @@ int ls(state_t *state, char *dir) {
   int i;
 
   /* prune all 256 requests */
-  if (!state->nonce[0]) {
-    prune(dir);
-  }
+  maybe_prune(state, dir);
   char *list_str = run("ls '%s'", dir);
   int list_str_len = strlen(list_str);
   /* obviously breaks if spaces are in filenames - oh well */
@@ -895,9 +914,15 @@ int ls(state_t *state, char *dir) {
   return list;
 }
 
+int maybe_prune(state_t *state, char *dir) {
+  if (state->nonce[0] == 'A') {
+    prune(dir);
+  }
+}
+
 int prune(char *dir) {
-  LOG("Pruning all files in %s older than 15 minutes", dir);
-  LOG(run("find '%s' -mmin +15 -type f -exec rm -fv {} \\;", dir));
+  LOG("Pruning all files in %s older than 15 minutes\n", dir);
+  LOG(run("find '%s' -mmin +15 -type f -not -name .gitkeep -exec rm -fv {} \\;", dir));
 }
 
 
@@ -948,7 +973,7 @@ void file_delete(char *filename) {
 }
 
 /* returns 0 on error / if :user exists */
-int user_create(char *name, char *pass_hash) {
+int user_create(char *name, char *pass) {
 
   char *user_loc = loc_user(name);
   FILE *file = file_create_atomic(user_loc);
@@ -966,6 +991,7 @@ int user_create(char *name, char *pass_hash) {
 
   } else {
 
+    char *pass_hash = hash(pass);
     fprintf(file, "name=%s\npass_hash=%s\n", name, pass_hash);
 
   }
@@ -981,11 +1007,12 @@ int handle_register(state_t *state) {
   if (!strlen(username)) { goto invalid_username; }
   cookie_set_val(state, "logged_in", "0");
   cookie_set_val(state, "username", username);
-  char *pass_hash = get_val(state, "password");
-  if (!user_create(username, pass_hash)) { goto invalid_username; }
+  char *pass = get_val(state, "password");
+  if (!user_create(username, pass)) { goto invalid_username; }
   state->username = username;
   state->user_loc = loc_user(state->username);
   cookie_set_val(state, "logged_in", "1");
+  printf("success");
   return 0;
 invalid_username:
   /* TODO Template? */
@@ -1024,12 +1051,15 @@ int handle_login(state_t *state) {
   if (!stored_pw_hash) { goto user_not_found; }
   if (!strcmp(login_pw_hash, stored_pw_hash)) {
 
+    LOG("Login successful for user %s", username);
     cookie_set_val(state, "logged_in", "1");
+    printf("success");
     return 0;
 
   }
 
 user_not_found:
+  LOG("Login failed for user %s", username);
   printf(
 #include "user_not_found.templ"
   );
@@ -1044,11 +1074,9 @@ error:
 /* char * */
 int run(char *cmd, char *param) {
 
-  param = dup_alphanumeric(param);
   char command[1024];
 
   sprintf(command, cmd, param);
-  free(param);
 
   LOG("Running %s\n", command);
 
@@ -1064,12 +1092,18 @@ int run(char *cmd, char *param) {
   char *ret = readline(fp);
   pclose(fp);
 
-  int ret_len = strlen(ret);
-  if (ret[ret_len -2] == '\n') {
-    ret[ret_len - 2] = '\0';                                /* strip newline */
-  }
+  if (!ret) { 
+    LOG("No Return\n");
+    ret = "";
+  } else {
 
-  LOG("Response was %s\n", cmd);
+    int ret_len = strlen(ret);
+    if (ret[ret_len -2] == '\n') {
+      ret[ret_len - 2] = '\0';                                /* strip newline */
+    }
+
+    LOG("Return was %s\n", ret);
+  }
 
   return ret;
 
@@ -1080,7 +1114,7 @@ int hash(to_hash) {
 
   char *hash = run(
       "python3 -c 'print(__import__(\"hashlib\").sha256(b\"%s\").hexdigest())'",
-      to_hash);
+      escape_4_hash(to_hash));
 
   return hash;
 
@@ -1102,20 +1136,22 @@ int handle_dispense(state_t *state) {
   if IS_POST {
     towel_token = get_val(state, "towel_token");
     towel_color = get_val(state, "towel_color");
-  }
 
-  char towel_space[1036];
-  sprintf(towel_space, TOWEL_DIR"%s", dup_alphanumeric(towel_token));
+    char towel_space[1036];
+    sprintf(towel_space, TOWEL_DIR"%s", dup_alphanumeric(towel_token));
 
-  FILE *file = file_create_atomic(towel_space);
-  if (!file) {
-    perror(towel_space);
-    char *error = "Sorry, towel dispensing failed. :(";
-    printf(
-      #include <error.templ>
-    );
+    FILE *file = file_create_atomic(towel_space);
+    if (!file) {
+      perror(towel_space);
+      char *error = "Sorry, towel dispensing failed. :(";
+      printf(
+        #include <error.templ>
+      );
+      return 0;
+    }
+    fclose(file);
+
   }
-  fclose(file);
 
   char *towel_id_enc = enc_towel_id(towel_id);
   char *towels = build_towels(state);

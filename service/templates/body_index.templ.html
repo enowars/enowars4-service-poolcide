@@ -7,9 +7,9 @@ TEMPLATE(
   <p>With a towl id, you can reserve a seat at the pool.</p>
   <p>"More importantly, a towel has immense psychological value."</p>
 
-  <p id="error"></p>
+  <div id="errormsg"></div>
 
-  <div>
+  <div id="userform">
     <ul> 
     <li>
     <label for="username">Username</label>
@@ -20,8 +20,8 @@ TEMPLATE(
     <input type="password" id="password" name="password" />
     </li>
     </ul>
-    <button id="login">login</button>
     <button id="register">register</button>
+    <button id="login">login</button>
   </div>
 
   <code id=pyramid />
@@ -44,7 +44,7 @@ TEMPLATE(
     if (response && response.includes("success")) {
       location.reload() 
     } else {
-      error.textContent = response
+      errormsg.innerHTML = response
     }
   }
 
