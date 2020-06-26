@@ -102,6 +102,14 @@ extern FILE *stderr;
                                                     \
   } while (0);
 
+#define ROUTE(method_name, route_name) if \
+  (!strcmp(state->method, #method_name) && !strcmp(state->route, #route_name)) { \
+  handle_##route_name(state); \
+}
+
+#define IS_GET (!strcmp(state->method, "GET"))
+#define IS_POST (!strcmp(state->method, "POST"))
+
 /* 0-9A-Za-z */
 #define IS_ALPHANUMERIC(c) (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && c <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
 
@@ -118,6 +126,7 @@ typedef struct state {
   char *user_loc;
   char *cookie_loc;
 
+  char *method;
   char *route;
 
   int logged_in;
@@ -274,7 +283,7 @@ int main() {
 
   char **cookie_kv = parse_query(current_cookies);
 
-  state_t *state = init_state(current_cookies, query_string);
+  state_t *state = init_state(request_method, current_cookies, query_string);
   write_headers(state);
 
   /* header end */
@@ -282,36 +291,14 @@ int main() {
 
   write_head(state);
 
-  if (!request_method) {
+  LOG("%s %s - %s %s \n", state->method, state->route, query_string, script_name);
 
-    /* Debug Mode */
-    request_method = "GET";
+  ROUTE(GET, index);
+  ROUTE(POST, login);
+  ROUTE(POST, register);
 
-  }
-
-  LOG("%s %s - %s %s \n", request_method, state->route, query_string, script_name);
-
-  if ((request_method && !strcmp(request_method, "GET")) ||
-      !strcmp(state->route, "")) {
-
-    handle_get(state);
-
-  } else if (request_method && !strcmp(request_method, "POST")) {
-
-    handle_post(state);
-
-  } else if (request_method && !strcmp(request_method, "TEST")) {
-
-    printf("TEST" NL);
-    trigger_gc(0);
-    exit(0);
-
-  } else {
-
-    printf("Unsupported method %s" NL, request_method);
-    return -1;
-
-  }
+  ROUTE(GET, dispense);
+  ROUTE(POST, dispense);
 
   printf(NL "</html>" NL);
 
@@ -721,10 +708,22 @@ int write_head(state_t *state) {
 }
 
 /* state_t * */
-int init_state(char *current_cookie, char *query_string) {
+int init_state(char *request_method, char *current_cookie, char *query_string) {
 
   int      i;
   state_t *state = calloc(sizeof(state_t), 1);
+
+  if (!request_method || !request_method[0]) {
+
+    LOG("No request method provided. Assuming GET\n");
+    state->method = "GET";
+
+  } else {
+
+    state->method = request_method;
+
+  }
+
   char *   new_cookie = dup_alphanumeric(current_cookie);
   if (new_cookie && !new_cookie[0]) {
 
@@ -845,9 +844,7 @@ int parse_cookie(char *cookies) {
 
 }
 
-/* The Webserver Methods */
-
-int handle_get(state_t *state) {
+int handle_index(state_t *state) {
 
   /*int cf = cookie_file(cookie);*/
   /*read_ini(USER_DIR + username);*/
@@ -926,22 +923,6 @@ int build_towels(state_t *state) {
     );
   }
   return ret;
-
-}
-
-int prune_towels() {
-  LOG("Pruning towels older than 15 minutes");
-  LOG(run("find /path -mmin +15 -type f -exec rm -fv {} \\;"));
-}
-
-int handle_post(state_t *state) {
-
-  if (!strcmp(state->route, "dispense")) {
-    handle_towel_dispenser(state);
-  }
-
-  /*TODO Handle post */
-  return 0;
 
 }
 
@@ -1107,10 +1088,14 @@ int enc_towel_id(towel_id) {
   );
 }
 
-int handle_towel_dispenser(state_t *state) {
+int handle_dispense(state_t *state) {
   char *towel_id = rand_str(16);
-  char *towel_token = get_val(state, "towel_token");
-  char *towel_color = get_val(state, "towel_color");
+  char *towel_token = "";
+  char *towel_color = "";
+  if IS_POST {
+    towel_token = get_val(state, "towel_token");
+    towel_color = get_val(state, "towel_color");
+  }
 
   char towel_space[1036];
   sprintf(towel_space, TOWEL_DIR"%s", dup_alphanumeric(towel_token));
@@ -1132,7 +1117,10 @@ int handle_towel_dispenser(state_t *state) {
     #include <towel_dispenser.templ>
   );
 
-  char *towel_admin_id = get_val(state, "towel_admin_id");
+  char *towel_admin_id = "";
+  if IS_POST {
+    char *towel_admin_id = get_val(state, "towel_admin_id");
+  }
   
   int id_len = strlen(towel_admin_id);
   if(!id_len) {
@@ -1141,13 +1129,21 @@ int handle_towel_dispenser(state_t *state) {
   }
   if (!strcmp(towel_id, towel_admin_id)) {
     LOG("An admin entered the scene!\n");
-    add_priority_towel_for(state->username);
+    add_priority_towel_for(state->username, towel_id);
   }
  
 }
 
-int add_priority_towel_for(char *username) {
+int add_priority_towel_for(char *username, char *towel_token) {
 
-  /*file_create_atomic();*/
+  char priority_towel_space[1036];
+  sprintf(priority_towel_space, TOWEL_DIR"%s", dup_alphanumeric(towel_token));
+
+  FILE *file = file_create_atomic(priority_towel_space);
+  if (!file) {
+    perror(priority_towel_space);
+  } else {
+    fclose(file);
+  }
 
 }
