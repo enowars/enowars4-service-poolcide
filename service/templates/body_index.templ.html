@@ -9,7 +9,7 @@ TEMPLATE(
 
   <p id="error"></p>
 
-  <form id="userform" action="">
+  <div>
     <ul> 
     <li>
     <label for="username">Username</label>
@@ -22,9 +22,9 @@ TEMPLATE(
     </ul>
     <button id="login">login</button>
     <button id="register">register</button>
-  </form>
+  </div>
 
-  <code id=pyramid nonce={{state->nonce%s}} style='font-family: "Lucida Console", Monaco, monospace;' />
+  <code id=pyramid />
 
 <script nonce="{{state->nonce%s}}">
 
@@ -34,12 +34,11 @@ TEMPLATE(
   pyramid.innerHTML = o.replace(/\n/g, "<br>")
 
   async function send(route) {
-    route = "poolcide?route=" + route;
+    route = "poolcide?route=" + route
+    console.log("Sending to", route)
     let response = await fetch(route, {
       method: 'POST',
-      body: `
-        username=${username.value}
-        password=${password.value}
+      body: `username=${username.value}&password=${password.value}&valid
       `
     }).text;
     if (response && response.includes("success")) {
@@ -49,9 +48,8 @@ TEMPLATE(
     }
   }
 
-  userform.onsubmit = () => console.log("submit")
   login.onclick = () => send("login")
-  login.onclick = () => send("register")
+  register.onclick = () => send("register")
 
   if ({{logged_in%d}}) {
     userform.innerHTML = `

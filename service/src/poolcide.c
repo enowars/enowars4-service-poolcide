@@ -292,12 +292,12 @@ int main() {
   });
 
   state_t *state = init_state(request_method, cookie, query_string);
+
   write_headers(state);
 
-  /* header end */
-  printf(NL);
-
-  write_head(state);
+  if IS_GET { /* AJAX State of mind */
+    write_head(state);
+  }
 
   LOG("%s %s - %s %s \n", state->method, state->route, query_string, script_name);
 
@@ -564,7 +564,7 @@ void write_ini(char *filename, char **ini) {
 
     if (!key_exists) {
 
-      fprintf(stdout, "Outputting %s=%s\n", key, val);
+      LOG("Outputting %s=%s\n", key, val);
 
       if (fprintf(file, "%s=%s\n", key, val) < 0) {
 
@@ -611,7 +611,7 @@ int file_set_val(char *filename, char *key_to_write, char *val_to_write) {
   char * keycpy = strdup(key_to_write);
   char * valcpy = strdup(val_to_write);
   char **ini = read_ini(filename);
-  printf("Setting %s to %s, Read:\n", key_to_write, val_to_write);
+  LOG("Setting %s to %s, Read:\n", key_to_write, val_to_write);
   int wrote_val = 0;
   int last_idx = -1;
   KV_FOREACH(ini, {
@@ -650,13 +650,14 @@ int get_val(state_t *state, char *key_to_find) {
 
   for (i = 0;; i++) {
 
-    /*printf("p: %d %p"NL, i, state->queries[i]);*/
+    /*LOG("p: %d %p\n"NL, i, state->queries[i]);*/
     if (!state->queries[i]) { state->queries[i] = parse_query(BODY()); }
 
     if (!state->queries[i]) { return _NULL; }
+    /*LOG("query: %s\n"NL, state->queries[i]);*/
     KV_FOREACH(state->queries[i], {
 
-      /*printf("%s %s\n", key, key_to_find);*/
+      /*LOG("tofind: %s - %s %s\n", key_to_find, key, val);*/
       if (!strcmp(key, key_to_find)) { return val; }
 
     });
@@ -686,7 +687,8 @@ int write_headers(state_t *state) {
 
   printf(
       /* TODO: Use CSP Nonce */
-      "Content-Security-Policy: script-src 'self' 'unsafe-inline';" NL
+      "Content-Security-Policy: script-src 'nonce-%s'; style-src 'nonce-%s'"
+      " https://fonts.googleapis.com/css2?family=Lobster&display=swap;" NL
       "X-Frame-Options: SAMEORIGIN" NL "X-Xss-Protection: 1; mode=block" NL
       "X-Content-Type-Options: nosniff" NL
       "Referrer-Policy: no-referrer-when-downgrade" NL
@@ -694,13 +696,10 @@ int write_headers(state_t *state) {
       "geolocation 'self'; midi 'self'; sync-xhr 'self'; microphone 'self'; "
       "camera 'self'; magnetometer 'self'; gyroscope 'self'; speaker 'self'; "
       "fullscreen *; payment 'self';" NL
-
       "Content-Type: text/html" NL
 
-      "Set-Cookie: "COOKIE_NAME"=");
-  printf(state->cookie);
-  printf("; Secure; HttpOnly"NL);
-
+      "Set-Cookie: "COOKIE_NAME"=%s; Secure; HttpOnly" NL NL,
+      state->nonce, state->nonce, state->cookie);
   return 0;
 
 }
@@ -1005,6 +1004,7 @@ char *get_user_val(state_t *state, char *key, char *default_val) {
 
 int cookie_remove(state) {
 
+  LOG("Removing cookie");
   file_delete(((state_t *)state)->cookie_loc);
 
 }

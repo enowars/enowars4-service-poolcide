@@ -17,7 +17,7 @@ RUN mv /tmp/age ./age
 
 # building poolcide
 RUN make clean
-RUN make tests
+#RUN make tests
 RUN make
 
 USER poolcide
