@@ -106,6 +106,7 @@ extern FILE *stderr;
       !strcmp(state->route, #route_name)) {   \
                                               \
     handle_##route_name(state);               \
+    handled=1;                                \
                                               \
   }
 
@@ -329,6 +330,8 @@ int main() {
   LOG("Started %s %s - %s %s \n", state->method, state->route, query_string,
       script_name);
 
+  int handled = 0;
+
   ROUTE(GET, index);
   ROUTE(POST, login);
   ROUTE(POST, register);
@@ -336,6 +339,16 @@ int main() {
   ROUTE(GET, dispense);
   ROUTE(GET, reserve);
   ROUTE(POST, reserve);
+
+  ROUTE(GET, towel);
+
+  if (!handled) {
+    LOG("Unknown route!\n");
+    char *error = "Unsupported route or method!";
+    printf(
+      #include <error.templ>
+    );
+  }
 
   if IS_GET { printf(NL "</html>" NL); }
 
@@ -987,6 +1000,7 @@ char **own_towel_list(state_t *state) {
   int i;
 
   char *own_towels = get_user_val(state, "towels", "");
+  LOG("User towels: %s\n", own_towels);
   int own_towel_len = strlen(own_towels);
   if (!own_towel_len) {
     return empty_list;
@@ -1000,6 +1014,7 @@ char **own_towel_list(state_t *state) {
       own_towel_list[own_towel_pos++] = own_towels+1;
     }
   }
+  LOG("User towel count: %d\n", own_towel_pos);
   return own_towel_list;
 
 }
@@ -1131,6 +1146,15 @@ int get_user_val(state_t *state, char *key, char *default_val) {
 
 }
 
+/* char * */
+int set_user_val(state_t *state, char *key, char *val) {
+
+  return file_set_val(state->user_loc, key, val);
+
+}
+
+
+
 int cookie_remove(state) {
 
   LOG("Removing cookie");
@@ -1259,8 +1283,13 @@ int handle_reserve(state_t *state) {
     return 0;
 
   }
-
+  fprintf(file, "%s", color);
   fclose(file);
+
+  char *user_towels_old = get_user_val(state, "towels", "");
+  char *user_towels_new = calloc(1, strlen(user_towels_old) + 10 + 2);
+  sprintf(user_towels_new, "%s;%s", user_towels_old, towel_token);
+  set_user_val(state, "towels", user_towels_new);
 
   char *towel_id_enc = enc_towel_id(towel_id);
   char *own_towels = render_own_towels(state);
@@ -1325,4 +1354,34 @@ int add_priority_towel_for(char *username, char *towel_token) {
 
   }
 
+}
+
+int handle_towel(state_t *state) {
+  int i;
+  char **towels = own_towel_list(state);
+  char *towel = get_val(state, "token");
+  for (i = 0; towels[i]; i++) {
+    if (!strcmp(towel, towels[i])) {
+      char *username = state->username;
+      char *color = escape_4_html(get_towel_color(towel));
+      printf(
+        #include <towel_details.templ>
+      );
+      return 0;
+    }
+  }
+  LOG("User %s does not posess towel %s\n", state->username, towel);
+  char *error = "Don't steal somebody elses towel, please. We're on holidays!.\n";
+  printf(
+    #include <error.templ>
+  );
+}
+
+int get_towel_color(char *towel) {
+  char towelpath[1036];
+  char *color = calloc(1, 4096);
+  FILE *file = fopen(towelpath, "r");
+  fread(color, 1, 4096, file);
+  fclose(file);
+  return color;
 }
