@@ -128,11 +128,12 @@ typedef struct state {
 
 /* Sane sourcecode STARTS with main. Why would anybody read from bottom to top? */
 
+int main() {
+
 /* run tests using
    make CFLAGS='-DTEST_RAND'
 */
 #if defined(TEST_RAND)
-int main() {
 
   printf("testing strlen of rand_str(16)\n");
   assert(strlen(rand_str(16)) == 16);
@@ -142,9 +143,7 @@ int main() {
   printf("%s\n", rand_str(16));
   return 0;
 
-}
 #elif defined(TEST_COOKIE_PARSER)
-int main() {
 
   parse_cookie("cookie");
   printf(parse_cookie(COOKIE_NAME"=testcookie;"));
@@ -153,11 +152,7 @@ int main() {
   assert(!strcmp(parse_cookie("test=fun; HTTPOnly; "COOKIE_NAME"=testcookie; "), "testcookie"));
   return 0;
 
-}
-
-
 #elif defined(TEST_QUERY_PARSER)
-int main() {
 
   int   i;
   char *parseme = "pool=side&fun=true&you're=beautiful!&&fun=";
@@ -167,10 +162,7 @@ int main() {
   assert(parseme[1] == query[0][1]);
   return 0;
 
-}
-
 #elif defined(TEST_ALPHA)
-int main() {
 
   char *alpha = "FUN1";
   char *nonalpha1 = "%%!FUN1";
@@ -182,10 +174,7 @@ int main() {
   free(alpha1);
   return 0;
 
-}
-
 #elif defined(TEST_VAL)
-int main() {
 
   system("mkdir -p " COOKIE_DIR);
   system("mkdir -p " USER_DIR);
@@ -200,11 +189,9 @@ int main() {
 
   printf("%s\n", testval);
   printf("%s\n", get_val(state, "test"));
-
-}
+  return 0;
 
 #elif defined(TEST_READLINE)
-int main() {
 
   char *body = BODY();
   if (body) {
@@ -219,18 +206,12 @@ int main() {
 
   return 0;
 
-}
-
 #elif defined(TEST_HASH)
-int main() {
 
   printf("%s" NL, hash("test"));
   return 0;
 
-}
-
 #elif defined(TEST_INI_FILES)
-int main() {
 
   char *testfile = "testfile.tmp";
   char *key = "testkey";
@@ -264,29 +245,21 @@ int main() {
 
   return 0;
 
-}
-
 #elif defined(TEST_ESCAPE)
-int main() {
 
   assert(!strcmp(escape_4_html("AA"), "&#41;&#41;"));
   assert(!strcmp(escape_4_py("AA"), "\\x41\\x41"));
   return 0;
 
-}
 #elif defined(TEST_TOWEL_ENC)
-int main() {
   
   printf(enc_towel_id("test"));
   assert(strlen(enc_towel_id("test")));
   return 0;
-}
 
 #else                                                            /* No TEST */
 
-/* THE MAIN */
-
-int main() {
+  /* THE ACTUAL MAIN */
 
   #ifdef RELEASE
   alarm(15);
@@ -344,10 +317,8 @@ int main() {
 
   return 0;
 
-}
-
 #endif
-
+}
 
 void assert(int condition) {
 
@@ -882,6 +853,7 @@ int handle_get(state_t *state) {
   /*read_ini(USER_DIR + username);*/
 
   char *username = state->username;
+  int logged_in = state->logged_in;
   printf(
 #include "body_index.templ"
   );

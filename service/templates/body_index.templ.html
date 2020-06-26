@@ -2,8 +2,12 @@ TEMPLATE(
 
   <body>
   <h1>Hello {{username%s}}</h1>
-  <p id=pyramid style='font-family: "Lucida Console", Monaco, monospace;' />
 
+  <p>Welcome at the Poolcide. Sit down and relax. Also get yourself a towl.</p>
+  <p>With a towl id, you can reserve a seat at the pool.</p>
+  <p>"More importantly, a towel has immense psychological value."</p>
+
+  <div id="login" >
   <form action="poolcide?route=login" method="post">
     <ul> 
     <li>
@@ -31,6 +35,9 @@ TEMPLATE(
     </ul>
     <button type="submit">register</button>
   </form>
+  </div>
+
+  <code id=pyramid style='font-family: "Lucida Console", Monaco, monospace;' />
 
 <script>
 
@@ -38,6 +45,10 @@ TEMPLATE(
   for(o=i=2020;i--;)o+=i%63?i&i/32&&'_':`
 `
   pyramid.innerHTML = o.replace(/\n/g, "<br>")
+
+  if ({{logged_in%d}}) {
+    login.innerHTML = "<p>Welcome back! :)</p>";
+  }
 
 </script>
 
