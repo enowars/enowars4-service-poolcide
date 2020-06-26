@@ -992,6 +992,7 @@ int handle_login(state_t *state) {
   if (!strcmp(login_pw_hash, stored_pw_hash)) {
 
     cookie_set_val(state, "logged_in", 1);
+    prinf("success");
     return 0;
 
   }

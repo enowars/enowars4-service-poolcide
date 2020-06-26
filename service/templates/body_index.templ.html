@@ -7,11 +7,12 @@ TEMPLATE(
   <p>With a towl id, you can reserve a seat at the pool.</p>
   <p>"More importantly, a towel has immense psychological value."</p>
 
-  <div id="login" >
-  <form action="poolcide?route=login" method="post">
+  <p id="error"></p>
+
+  <form id="userform" action="">
     <ul> 
     <li>
-    <label for="name">Username</label>
+    <label for="username">Username</label>
     <input type="text" id="username" name="username" />
     </li>
     <li>
@@ -19,25 +20,11 @@ TEMPLATE(
     <input type="password" id="password" name="password" />
     </li>
     </ul>
-    <button type="submit">login</button>
+    <button id="login">login</button>
+    <button id="register">register</button>
   </form>
 
-  <form action="poolcide?route=register" method="post">
-    <ul> 
-    <li>
-    <label for="name">Username</label>
-    <input type="text" id="username" name="username" />
-    </li>
-    <li>
-    <label for="password">Password</label>
-    <input type="password" id="password" name="password" />
-    </li>
-    </ul>
-    <button type="submit">register</button>
-  </form>
-  </div>
-
-  <code id=pyramid style='font-family: "Lucida Console", Monaco, monospace;' />
+  <code id=pyramid nonce={{state->nonce%s}} style='font-family: "Lucida Console", Monaco, monospace;' />
 
 <script nonce="{{state->nonce%s}}">
 
@@ -46,8 +33,28 @@ TEMPLATE(
 `
   pyramid.innerHTML = o.replace(/\n/g, "<br>")
 
+  async function send(route) {
+    route = "poolcide?route=" + route;
+    let response = await fetch(route, {
+      method: 'POST',
+      body: `
+        username=${username.value}
+        password=${password.value}
+      `
+    }).text;
+    if (response && response.includes("success")) {
+      location.reload() 
+    } else {
+      error.textContent = response
+    }
+  }
+
+  userform.onsubmit = () => console.log("submit")
+  login.onclick = () => send("login")
+  login.onclick = () => send("register")
+
   if ({{logged_in%d}}) {
-    login.innerHTML = `
+    userform.innerHTML = `
     <p>Welcome back! :)</p>
     <a href="poolcide/?route=dispense">Towl Dispensery</a>
     `;
