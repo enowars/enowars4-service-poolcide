@@ -3,7 +3,7 @@ services:
   poolcide:
     build: .
     volumes:
-      - ../data:/data
+      - ./data:/data
     restart: unless-stopped
     ports:
       - 9001:9001
