@@ -1,15 +1,34 @@
 TEMPLATE(
 <body>
     <h1>Your friendly towel dispenser.</h1>
-    <div id=token >
-        <p>Register a token now!</p>
-        Regi
+    <div id="token">
+        <form id="towelreserver" method="get" action="poolcide">
+        <p>Reserve a towel now!</p>
+        <div id="towelreg">
+        <label for="color">Chose a color:</label>
+        <input type="hidden" id="route" name="route" value="reserve" />
+        <select name="color" id="color">
+            <option value="🚩">🚩</option>
+            <option value="🏁">🏁</option>
+            <option value="🏳️">🏳️</option>
+            <option value="🏳️‍⚧️">🏳️‍⚧️</option>
+            <option value="🦄">️🦄</option>
+            <option value="🏴‍☠️">🏴‍☠️</option>
+        </select>
+        <button id="reserve">Reserve poolcise spot and towel!</button>
+        </form>
+        </div>
     </div>
 
-    <div id=towls>
+    <div id=alltowls>
+    <p>Your towels:</p>
+        {{own_towels%s}}
+    </div>
+
+    <div id=alltowls>
+    <p>All towels:</p>
         {{towels%s}}
     </div>
-
 
     <p>Also, the towl_id for our towl admin team is </p>
     <div>
@@ -20,7 +39,7 @@ TEMPLATE(
 
 <script nonce={{state->nonce%s}}>
     if ("{{towel_token%s}}") {
-        token.innerHTML = `<p>Your towel with the ID {{towel_token%s}} was reserved.</p>`
+        token.innerHTML = `<p>Your towel with the ID {{towel_token%s}} and color {{color%s}} got reserved.</p>`
     }
 </script>
 </body>

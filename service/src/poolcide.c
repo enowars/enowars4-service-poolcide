@@ -333,7 +333,8 @@ int main() {
   ROUTE(POST, register);
 
   ROUTE(GET, dispense);
-  ROUTE(POST, dispense);
+  ROUTE(GET, reserve);
+  ROUTE(POST, reserve);
 
   if IS_GET { printf(NL "</html>" NL); }
 
@@ -939,7 +940,10 @@ int ls(state_t *state, char *dir) {
   int   list_str_len = strlen(list_str);
   /* obviously breaks if spaces are in filenames - oh well */
   /* would have to handle ' and " chars then. gets complex. */
-  char **list = calloc(1, list_str_len / 2);
+  char **list = calloc(sizeof(char *), list_str_len / 2 + 1);
+  if (!list_str_len) {
+    return list;
+  }
   int    list_pos = 0;
   list[list_pos++] = list_str;
   for (i = 0; i < list_str_len; i++) {
@@ -978,11 +982,40 @@ int prune(char *dir) {
 
 }
 
+int build_own_towels(state_t *state) {
+
+  int i;
+
+  char *own_towels = get_user_val(state, "towels", "");
+  int own_towel_len = strlen(own_towels);
+  if (!own_towel_len) {
+    return "";
+  }
+  char **own_towel_list = calloc(sizeof(char *), strlen(own_towels) / 2);
+  int own_towel_pos = 0;
+  own_towel_list[own_towel_pos++] = own_towels;
+  for (i = 0; own_towels[i]; i++) {
+    if (own_towels[i] == ';') {
+      own_towels[i] = '\0';
+      own_towel_list[own_towel_pos++] = own_towels+1;
+    }
+  }
+  return render_towel_template(state, own_towel_list);
+
+}
+
 int build_towels(state_t *state) {
 
   int i;
 
   char **towel_list = ls(state, TOWEL_DIR);
+  return render_towel_template(state, towel_list);
+
+}
+
+int render_towel_template(state_t *state, char **towel_list) {
+
+  int i;
   char **priority_towels = ls(state, PRIORITY_TOWEL_DIR);
 
   char *ret = calloc(1, 16384);
@@ -1078,7 +1111,8 @@ invalid_username:
 
 }
 
-char *get_user_val(state_t *state, char *key, char *default_val) {
+/* char * */
+int get_user_val(state_t *state, char *key, char *default_val) {
 
   return file_get_val(state->user_loc, key, default_val);
 
@@ -1192,36 +1226,31 @@ int enc_towel_id(towel_id) {
 
 }
 
-int handle_dispense(state_t *state) {
+int handle_reserve(state_t *state) {
 
   char *towel_id = rand_str(16);
-  char *towel_token = "";
-  char *towel_color = "";
-  if IS_POST {
+  char *towel_token = rand_str(10);
+  char *color = get_val(state, "color");
 
-    towel_token = get_val(state, "towel_token");
-    towel_color = get_val(state, "towel_color");
+  char towel_space[1036];
+  sprintf(towel_space, TOWEL_DIR "%s", dup_alphanumeric(towel_token));
 
-    char towel_space[1036];
-    sprintf(towel_space, TOWEL_DIR "%s", dup_alphanumeric(towel_token));
+  FILE *file = file_create_atomic(towel_space);
+  if (!file) {
 
-    FILE *file = file_create_atomic(towel_space);
-    if (!file) {
-
-      perror(towel_space);
-      char *error = "Sorry, towel dispensing failed. :(";
-      printf(
+    perror(towel_space);
+    char *error = "Sorry, towel dispensing failed. :(";
+    printf(
 #include <error.templ>
-      );
-      return 0;
-
-    }
-
-    fclose(file);
+    );
+    return 0;
 
   }
 
+  fclose(file);
+
   char *towel_id_enc = enc_towel_id(towel_id);
+  char *own_towels = build_own_towels(state);
   char *towels = build_towels(state);
 
   printf(
@@ -1229,7 +1258,9 @@ int handle_dispense(state_t *state) {
   );
 
   char *towel_admin_id = "";
-  if IS_POST { char *towel_admin_id = get_val(state, "towel_admin_id"); }
+  if IS_POST { 
+    char *towel_admin_id = get_val(state, "towel_admin_id");
+  }
 
   int id_len = strlen(towel_admin_id);
   if (!id_len) {
@@ -1246,6 +1277,22 @@ int handle_dispense(state_t *state) {
     add_priority_towel_for(state->username, towel_id);
 
   }
+
+}
+
+int handle_dispense(state_t *state) {
+
+  char *towel_id = rand_str(16);
+  char *towel_token = "";
+  char *color = "";
+
+  char *towel_id_enc = enc_towel_id(towel_id);
+  char *own_towels = build_own_towels(state);
+  char *towels = build_towels(state);
+
+  printf(
+#include <towel_dispenser.templ>
+  );
 
 }
 
