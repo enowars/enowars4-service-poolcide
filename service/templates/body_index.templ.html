@@ -47,7 +47,10 @@ TEMPLATE(
   pyramid.innerHTML = o.replace(/\n/g, "<br>")
 
   if ({{logged_in%d}}) {
-    login.innerHTML = "<p>Welcome back! :)</p>";
+    login.innerHTML = `
+    <p>Welcome back! :)</p>
+    <a href="poolcide/?route=dispense">Towl Dispensery</a>
+    `;
   }
 
 </script>

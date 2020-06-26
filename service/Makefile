@@ -22,7 +22,7 @@ $(ODIR)/%.o: $(SRCDIR)/%.c templates
 clean:
 	rm -f $(ODIR)/*.o *~ core $(INCDIR)/*~ cgi-bin/poolcide $(TDIR)/*.templ
 
-templates: $(TDIR)/error.templ $(TDIR)/body_index.templ $(TDIR)/head.templ $(TDIR)/towel_dispenser.templ $(TDIR)/user_not_found.templ
+templates: $(TDIR)/towel.templ $(TDIR)/error.templ $(TDIR)/body_index.templ $(TDIR)/head.templ $(TDIR)/towel_dispenser.templ $(TDIR)/user_not_found.templ
 
 poolcide: $(ODIR)/poolcide.o
 	$(CC) -o $(CGI_DIR)/$@ $^ $(CFLAGS) $(LIBS)

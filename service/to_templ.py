@@ -69,8 +69,9 @@ def compile_template(in_file, out_file):
                     continue
                 handle_line(output, line)
             for var in vars:
-                output.write(b", ")
+                output.write(b", (")
                 output.write(var)
+                output.write(b")")
 
 
 if __name__ == "__main__":

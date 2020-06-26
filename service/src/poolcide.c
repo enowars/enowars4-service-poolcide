@@ -854,12 +854,84 @@ int handle_get(state_t *state) {
 
   char *username = state->username;
   int logged_in = state->logged_in;
+
   printf(
 #include "body_index.templ"
   );
 
   return 0;
 
+}
+
+int ls(state_t *state, char *dir) {
+
+  int i;
+  char cmd[1036];
+
+  /* prune all 256 requests */
+  if (!state->nonce[0]) {
+    prune(dir);
+  }
+  sprintf(cmd, "ls '%s'", dir);
+  char *list_str = run(cmd);
+  int list_str_len = strlen(list_str);
+  /* obviously breaks if spaces are in filenames - oh well */
+  /* would have to handle ' and " chars then. gets complex. */
+  char **list = calloc(1, list_str_len / 2);
+  int list_pos = 0;
+  list[list_pos++] = list_str;
+  for (i = 0; i < list_str_len; i++) {
+    if (!list_str[i]) {
+      LOG("more ls entries than strlen?");
+      assert(0);
+    }
+    if (list_str[i] == ' ') {
+      list_str[i] = '\0';
+      list[list_pos++] = list_str[i+1];
+    }
+  }
+  return list;
+}
+
+int prune(char *dir) {
+  char cmd[1036];
+  LOG("Pruning all files in %s older than 15 minutes", dir);
+  sprintf(cmd, "find '%s' -mmin +15 -type f -exec rm -fv {} \\;", dir);
+  LOG(run(cmd));
+}
+
+
+int build_towels(state_t *state) {
+
+  int i;
+
+  char **towel_list = ls(state, TOWEL_DIR);
+  char **priority_towels = ls(state, PRIORITY_TOWEL_DIR);
+
+  char *ret = calloc(1, 16384);
+  int retpos = 0;
+
+  for (i = 0; towel_list[i]; i++) {
+
+    int k;
+    int priority_towel = 0;
+    char *towel_name = towel_list[i];
+    for (k = 0; priority_towels[k]; k++) {
+      if (!strcmp(towel_name, priority_towels[k])) {
+        priority_towel = 1;
+      }
+    }
+    retpos += sprintf(ret + retpos, 
+      #include <towel.templ>
+    );
+  }
+  return ret;
+
+}
+
+int prune_towels() {
+  LOG("Pruning towels older than 15 minutes");
+  LOG(run("find /path -mmin +15 -type f -exec rm -fv {} \\;"));
 }
 
 int handle_post(state_t *state) {
@@ -981,7 +1053,8 @@ error:
 
 }
 
-char *run(char *cmd, char *param) {
+/* char * */
+int run(char *cmd, char *param) {
 
   param = dup_alphanumeric(param);
   char command[1024];
@@ -1053,6 +1126,8 @@ int handle_towel_dispenser(state_t *state) {
   fclose(file);
 
   char *towel_id_enc = enc_towel_id(towel_id);
+  char *towels = build_towels(state);
+
   printf(
     #include <towel_dispenser.templ>
   );
