@@ -30,7 +30,7 @@
   do {                  \
                         \
     fprintf(stderr, x); \
-    fflush(stderr); \
+    fflush(stderr);     \
                         \
   } while (0);
 
@@ -103,16 +103,21 @@ extern FILE *stderr;
                                                     \
   } while (0);
 
-#define ROUTE(method_name, route_name) if \
-  (!strcmp(state->method, #method_name) && !strcmp(state->route, #route_name)) { \
-  handle_##route_name(state); \
-}
+#define ROUTE(method_name, route_name)        \
+  if (!strcmp(state->method, #method_name) && \
+      !strcmp(state->route, #route_name)) {   \
+                                              \
+    handle_##route_name(state);               \
+                                              \
+  }
 
 #define IS_GET (!strcmp(state->method, "GET"))
 #define IS_POST (!strcmp(state->method, "POST"))
 
 /* 0-9A-Za-z */
-#define IS_ALPHANUMERIC(c) (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && c <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
+#define IS_ALPHANUMERIC(c)                                   \
+  (((c) >= '0' && (c) <= '9') || ((c) >= 'A' && c <= 'Z') || \
+   ((c) >= 'a' && (c) <= 'z'))
 
 /* Templating in C is eas-C */
 #define TEMPLATE(x) #x
@@ -136,7 +141,8 @@ typedef struct state {
 
 } state_t;
 
-/* Sane sourcecode STARTS with main. Why would anybody read from bottom to top? */
+/* Sane sourcecode STARTS with main. Why would anybody read from bottom to top?
+ */
 
 int main() {
 
@@ -156,10 +162,12 @@ int main() {
 #elif defined(TEST_COOKIE_PARSER)
 
   parse_cookie("cookie");
-  printf(parse_cookie(COOKIE_NAME"=testcookie;"));
-  assert(!strcmp(parse_cookie(COOKIE_NAME"=testcookie;"), "testcookie"));
-  assert(!strcmp(parse_cookie(COOKIE_NAME"=testcookie; "), "testcookie"));
-  assert(!strcmp(parse_cookie("test=fun; HTTPOnly; "COOKIE_NAME"=testcookie; "), "testcookie"));
+  printf(parse_cookie(COOKIE_NAME "=testcookie;"));
+  assert(!strcmp(parse_cookie(COOKIE_NAME "=testcookie;"), "testcookie"));
+  assert(!strcmp(parse_cookie(COOKIE_NAME "=testcookie; "), "testcookie"));
+  assert(
+      !strcmp(parse_cookie("test=fun; HTTPOnly; " COOKIE_NAME "=testcookie; "),
+              "testcookie"));
   return 0;
 
 #elif defined(TEST_QUERY_PARSER)
@@ -262,7 +270,7 @@ int main() {
   return 0;
 
 #elif defined(TEST_TOWEL_ENC)
-  
+
   printf(enc_towel_id("test"));
   assert(strlen(enc_towel_id("test")));
   return 0;
@@ -286,28 +294,39 @@ int main() {
 
   char *cookie = "";
   KV_FOREACH(cookie_kv, {
+
     if (!strcmp(key, COOKIE_NAME)) {
+
       int i;
       cookie = val;
       for (i = 0; cookie[i]; i++) {
+
         if (cookie[i] == ';' || cookie[i] == ' ') {
+
           cookie[i] = '\0';
           break;
+
         }
+
       }
+
       LOG("Got cookie %s\n", cookie);
+
     }
+
   });
 
   state_t *state = init_state(request_method, cookie, query_string);
 
   write_headers(state);
 
-  if IS_GET { /* AJAX State of mind */
+  if IS_GET {                                         /* AJAX State of mind */
     write_head(state);
+
   }
 
-  LOG("Started %s %s - %s %s \n", state->method, state->route, query_string, script_name);
+  LOG("Started %s %s - %s %s \n", state->method, state->route, query_string,
+      script_name);
 
   ROUTE(GET, index);
   ROUTE(POST, login);
@@ -316,17 +335,15 @@ int main() {
   ROUTE(GET, dispense);
   ROUTE(POST, dispense);
 
-  if IS_GET {
-    printf(NL "</html>" NL);
-  }
+  if IS_GET { printf(NL "</html>" NL); }
 
-  LOG("Finished %s %s - %s %s \n", state->method, state->route, query_string, script_name);
-
-
+  LOG("Finished %s %s - %s %s \n", state->method, state->route, query_string,
+      script_name);
 
   return 0;
 
 #endif
+
 }
 
 void assert(int condition) {
@@ -374,6 +391,7 @@ char *escape(char *replace, char *str) {
     /*sprintf(ret + (i * replace_len), replace, str[i]);*/
 
   }
+
   LOG("\n");
 
   return ret;
@@ -381,11 +399,11 @@ char *escape(char *replace, char *str) {
 }
 
 /* char * */
-#define E4(name, replace)            \
+#define E4(name, replace)          \
   int escape_4_##name(char *str) { \
-                                     \
-    return escape(replace, str);     \
-                                     \
+                                   \
+    return escape(replace, str);   \
+                                   \
   }
 
 E4(py, "\\x%2x")
@@ -402,6 +420,7 @@ int file_create_atomic(filename) {
     return _NULL;
 
   }
+
   fprintf(stderr, "Created file: %s\n", filename);
 
   return fdopen(fd, "w");
@@ -479,10 +498,13 @@ int parse_query(str) {
 
   if (!str) { return _NULL; }
   int content_len = strlen(str);
-  if (!content_len) { 
+  if (!content_len) {
+
     static char *empty[2] = {0};
-    return empty; 
+    return empty;
+
   }
+
   char **ret = calloc(1, (content_len)*4 + 8);
   char * contents = strdup(str);
   int    parsing_key = 1;
@@ -710,10 +732,9 @@ int write_headers(state_t *state) {
       "Feature-Policy "
       "geolocation 'self'; midi 'self'; sync-xhr 'self'; microphone 'self'; "
       "camera 'self'; magnetometer 'self'; gyroscope 'self'; speaker 'self'; "
-      "fullscreen *; payment 'self';" NL
-      "Content-Type: text/html" NL
+      "fullscreen *; payment 'self';" NL "Content-Type: text/html" NL
 
-      "Set-Cookie: "COOKIE_NAME"=%s; Secure; HttpOnly" NL NL,
+      "Set-Cookie: " COOKIE_NAME "=%s; Secure; HttpOnly" NL NL,
       state->nonce, state->nonce, state->cookie);
   return 0;
 
@@ -746,7 +767,7 @@ int init_state(char *request_method, char *current_cookie, char *query_string) {
 
   }
 
-  char *   new_cookie = dup_alphanumeric(current_cookie);
+  char *new_cookie = dup_alphanumeric(current_cookie);
   if (new_cookie && !new_cookie[0]) {
 
     free(new_cookie);
@@ -776,15 +797,20 @@ int init_state(char *request_method, char *current_cookie, char *query_string) {
   LOG("User is%s logged in.\n", state->logged_in ? "" : " not");
 
   if (state->logged_in) {
+
     state->username = cookie_get_val(state, "username", _NULL);
+
   }
+
   if (state->username) {
 
     LOG("User %s is back!\n", state->username);
     state->user_loc = loc_user(state->username);
 
   } else {
+
     state->username = "New User";
+
   }
 
   state->nonce = rand_str(16);
@@ -820,20 +846,16 @@ int parse_cookie(char *cookies) {
 
   int i;
 
-  if (!cookies) {
-    return _NULL;
-  }
+  if (!cookies) { return _NULL; }
   int content_len = strlen(cookies);
-  if (!content_len) { 
-    return _NULL;
-  }
+  if (!content_len) { return _NULL; }
 
   char *contents = strdup(cookies);
-  int    parsing_key = 1;
-  int    current_len = 0;
+  int   parsing_key = 1;
+  int   current_len = 0;
   char *current_key = contents;
   char *current_val = _NULL;
-  int val_count = 0;
+  int   val_count = 0;
 
   /* Strip tailing newline */
   if (contents[content_len - 1] == '\n') {
@@ -844,30 +866,49 @@ int parse_cookie(char *cookies) {
   }
 
   for (i = 0; i < content_len; i++) {
+
     if (contents[i] == ';') {
+
       contents[i] = '\0';
-      if(parsing_key) {
+      if (parsing_key) {
+
         current_key = contents + i + 1;
         current_val = 0;
+
       } else {
+
         if (!strcmp(current_key, COOKIE_NAME)) {
+
           return dup_alphanumeric(current_val);
+
         }
+
         parsing_key = 1;
         current_key = contents + i + 1;
         current_val = _NULL;
+
       }
+
     } else if (parsing_key && contents[i] == ' ') {
+
       current_key = contents + i + 1;
+
     } else if (parsing_key && (contents[i] == DELIM || contents[i] == ' ')) {
+
       contents[i] = '\0';
       parsing_key = 0;
       current_val = contents + i + 1;
+
     }
+
   }
+
   if (!strcmp(current_key, COOKIE_NAME)) {
+
     return dup_alphanumeric(current_val);
+
   }
+
   return _NULL;
 
 }
@@ -878,7 +919,7 @@ int handle_index(state_t *state) {
   /*read_ini(USER_DIR + username);*/
 
   char *username = state->username;
-  int logged_in = state->logged_in;
+  int   logged_in = state->logged_in;
 
   printf(
 #include "body_index.templ"
@@ -895,36 +936,47 @@ int ls(state_t *state, char *dir) {
   /* prune all 256 requests */
   maybe_prune(state, dir);
   char *list_str = run("ls '%s'", dir);
-  int list_str_len = strlen(list_str);
+  int   list_str_len = strlen(list_str);
   /* obviously breaks if spaces are in filenames - oh well */
   /* would have to handle ' and " chars then. gets complex. */
   char **list = calloc(1, list_str_len / 2);
-  int list_pos = 0;
+  int    list_pos = 0;
   list[list_pos++] = list_str;
   for (i = 0; i < list_str_len; i++) {
+
     if (!list_str[i]) {
+
       LOG("more ls entries than strlen?");
       assert(0);
+
     }
+
     if (list_str[i] == ' ') {
+
       list_str[i] = '\0';
-      list[list_pos++] = list_str[i+1];
+      list[list_pos++] = list_str[i + 1];
+
     }
+
   }
+
   return list;
+
 }
 
 int maybe_prune(state_t *state, char *dir) {
-  if (state->nonce[0] == 'A') {
-    prune(dir);
-  }
+
+  if (state->nonce[0] == 'A') { prune(dir); }
+
 }
 
 int prune(char *dir) {
-  LOG("Pruning all files in %s older than 15 minutes\n", dir);
-  LOG(run("find '%s' -mmin +15 -type f -not -name .gitkeep -exec rm -fv {} \\;", dir));
-}
 
+  LOG("Pruning all files in %s older than 15 minutes\n", dir);
+  LOG(run("find '%s' -mmin +15 -type f -not -name .gitkeep -exec rm -fv {} \\;",
+          dir));
+
+}
 
 int build_towels(state_t *state) {
 
@@ -934,22 +986,25 @@ int build_towels(state_t *state) {
   char **priority_towels = ls(state, PRIORITY_TOWEL_DIR);
 
   char *ret = calloc(1, 16384);
-  int retpos = 0;
+  int   retpos = 0;
 
   for (i = 0; towel_list[i]; i++) {
 
-    int k;
-    int priority_towel = 0;
+    int   k;
+    int   priority_towel = 0;
     char *towel_name = towel_list[i];
     for (k = 0; priority_towels[k]; k++) {
-      if (!strcmp(towel_name, priority_towels[k])) {
-        priority_towel = 1;
-      }
+
+      if (!strcmp(towel_name, priority_towels[k])) { priority_towel = 1; }
+
     }
-    retpos += sprintf(ret + retpos, 
-      #include <towel.templ>
+
+    retpos += sprintf(ret + retpos,
+#include <towel.templ>
     );
+
   }
+
   return ret;
 
 }
@@ -1092,17 +1147,22 @@ int run(char *cmd, char *param) {
   char *ret = readline(fp);
   pclose(fp);
 
-  if (!ret) { 
+  if (!ret) {
+
     LOG("No Return\n");
     ret = "";
+
   } else {
 
     int ret_len = strlen(ret);
-    if (ret[ret_len -2] == '\n') {
-      ret[ret_len - 2] = '\0';                                /* strip newline */
+    if (ret[ret_len - 2] == '\n') {
+
+      ret[ret_len - 2] = '\0';                             /* strip newline */
+
     }
 
     LOG("Return was %s\n", ret);
+
   }
 
   return ret;
@@ -1122,33 +1182,41 @@ int hash(to_hash) {
 
 /* char *(char *) */
 int enc_towel_id(towel_id) {
+
   return run(
-    "echo '%s'"
-    "| ./age -r age1mngxnym3sz9t8jtyfsl43szh4pg070g857khq6zpw3h9l37v3gdqs2nrlx -a"
-    "| tr -d '\\n'", towel_id
-  );
+      "echo '%s'"
+      "| ./age -r "
+      "age1mngxnym3sz9t8jtyfsl43szh4pg070g857khq6zpw3h9l37v3gdqs2nrlx -a"
+      "| tr -d '\\n'",
+      towel_id);
+
 }
 
 int handle_dispense(state_t *state) {
+
   char *towel_id = rand_str(16);
   char *towel_token = "";
   char *towel_color = "";
   if IS_POST {
+
     towel_token = get_val(state, "towel_token");
     towel_color = get_val(state, "towel_color");
 
     char towel_space[1036];
-    sprintf(towel_space, TOWEL_DIR"%s", dup_alphanumeric(towel_token));
+    sprintf(towel_space, TOWEL_DIR "%s", dup_alphanumeric(towel_token));
 
     FILE *file = file_create_atomic(towel_space);
     if (!file) {
+
       perror(towel_space);
       char *error = "Sorry, towel dispensing failed. :(";
       printf(
-        #include <error.templ>
+#include <error.templ>
       );
       return 0;
+
     }
+
     fclose(file);
 
   }
@@ -1157,36 +1225,45 @@ int handle_dispense(state_t *state) {
   char *towels = build_towels(state);
 
   printf(
-    #include <towel_dispenser.templ>
+#include <towel_dispenser.templ>
   );
 
   char *towel_admin_id = "";
-  if IS_POST {
-    char *towel_admin_id = get_val(state, "towel_admin_id");
-  }
-  
+  if IS_POST { char *towel_admin_id = get_val(state, "towel_admin_id"); }
+
   int id_len = strlen(towel_admin_id);
-  if(!id_len) {
-    LOG("Empty towl admin response received. In case you expected an admin to access this towl, there may be a proxy messing up adminness.\n");
+  if (!id_len) {
+
+    LOG("Empty towl admin response received. In case you expected an admin to "
+        "access this towl, there may be a proxy messing up adminness.\n");
     return -1;
+
   }
+
   if (!strcmp(towel_id, towel_admin_id)) {
+
     LOG("An admin entered the scene!\n");
     add_priority_towel_for(state->username, towel_id);
+
   }
- 
+
 }
 
 int add_priority_towel_for(char *username, char *towel_token) {
 
   char priority_towel_space[1036];
-  sprintf(priority_towel_space, TOWEL_DIR"%s", dup_alphanumeric(towel_token));
+  sprintf(priority_towel_space, TOWEL_DIR "%s", dup_alphanumeric(towel_token));
 
   FILE *file = file_create_atomic(priority_towel_space);
   if (!file) {
+
     perror(priority_towel_space);
+
   } else {
+
     fclose(file);
+
   }
 
 }
+
