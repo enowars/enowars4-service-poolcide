@@ -29,15 +29,16 @@ class PoolcideChecker(BaseChecker):
     def random_password(self) -> str:
         return self.random_string(16)
 
-    def register(self, username: str, password: str) -> str:
+    def user_request(self, route: str, username: str, password: str) -> str:
+        self.info(f"Executing {route} as user {username} with password {password}")
         with self.connect() as t:
             # TODO Change order, newlines, ...
             t.write(
-                f"POST /cgi-bin/poolcide?route=register HTTP/1.0\r\n\r\nusername=${username}&password=${password}\n"
+                f"POST /cgi-bin/poolcide?route={route} HTTP/1.0\r\n\r\nusername={username}&password={password}\n"
             )
             resp = t.read_all()
             try:
-                print(resp)
+                self.debug(resp)
                 cookie = (
                     resp.split(b"Set-Cookie: ")[1].split(b"poolcode=")[1].split(b";")[0]
                 )
@@ -45,29 +46,47 @@ class PoolcideChecker(BaseChecker):
                 self.warning(ex)
                 raise BrokenServiceException("Could not read cookie")
             if not b"success" in resp:
+                self.error(f"No success response, instead got {resp}")
                 raise BrokenServiceException("Login failed")
             cookie = cookie.decode()
             self.info(f"Got cookie {cookie}")
             return cookie
 
+    def login(self, username: str, password: str) -> str:
+        return self.user_request("login", username, password)
+
+    def register(self, username: str, password: str) -> str:
+        return self.user_request("register", username, password)
+
     def reserve_as_admin(self, cookie: str) -> None:
         # TODO
         with self.connect() as t:
             t.write(
-                f"POST /cgi-bin/poolcide?route=reserve HTTP/1.0\r\nCookie: poolcode=${cookie}\r\n\r\n"
-                f"color=${self.flag}\n"
+                f"POST /cgi-bin/poolcide?route=reserve HTTP/1.0\r\nCookie: poolcode={cookie}\r\n\r\n"
+                f"color={self.flag}\n"
             )
             stuff = t.read_until("<code>")
             # TODO expect more stuff
             if b"admin" not in stuff:
                 raise BrokenServiceException("No valid answer from reserve POST")
-            age_foo = t.read_until("<")
-            age_foo = age_foo.decode()[:-1]
+
+            content = t.read_until("</body>")
+            content = content.decode()[:-1]
+
+            try:
+                self.debug(f"reserve page content is {content}")
+                towel_id = content.split("ID ")[1].split(" and")[0]
+                self.info(f"Got towel id {towel_id}")
+                self.team_db[self.flag + "_towel"] = towel_id
+            except Exception as ex:
+                self.warning(ex)
+                raise BrokenServiceException("Could not get Towel ID")
+
             age_begin = "-----BEGIN AGE ENCRYPTED FILE-----"
             age_end = "-----END AGE ENCRYPTED FILE-----"
             age_line_len = 64
             try:
-                line = age_foo.split(age_begin)[1].split(age_end)[0]
+                line = content.split(age_begin)[1].split(age_end)[0]
             except Exception as ex:
                 raise BrokenServiceException("Admin token not found")
             n = age_line_len
@@ -80,20 +99,17 @@ class PoolcideChecker(BaseChecker):
             )
             admin_id = resp.stdout.strip()
             if len(admin_id) != 16:
-                self.warning("Got ${admin_id} (stderr ${resp.stderr}) from ./age")
+                self.warning("Got {admin_id} (stderr {resp.stderr}) from ./age")
                 raise BrokenServiceException("No valid Admin ID could be found")
             t.write(b"towel_admin_id=")
             t.write(admin_id)
             t.write("\n")
             all = t.read_all()
             if not b"Admin at the pool" in all:
-                self.warning(f"Didn't find admin info in ${all}")
+                self.warning(f"Didn't find admin info in {all}")
                 raise BrokenServiceException(
                     "Could not Administer Towels at the Poolcide."
                 )
-
-        self.warning("Putflag not done yet")
-        pass
 
     def putflag(self) -> None:
         user = self.random_user()
@@ -109,8 +125,24 @@ class PoolcideChecker(BaseChecker):
         self.reserve_as_admin(cookie)
 
     def getflag(self) -> None:
-        self.connect()
-        self.logger.warning("Getflag not implemented")
+        try:
+            user = self.team_db[self.flag]["user"]
+            password = self.team_db[self.flag]["password"]
+            towel_id = self.team_db[self.flag + "_towel"]
+        except Exception as ex:
+            self.error("Could not get user, password or towlid from db: {ex}")
+            raise BrokenServiceException("No stored credentials from putflag in getflag")
+        cookie = self.login(user, password)
+        resp = self.http_get("http://localhost:9001/cgi-bin/poolcide/poolcide?route=towel&token={towel_id}", cookies={"poolcode": cookie})
+        try:
+            print(resp.text)
+            flag = resp.text.split("<code>")[1].split("</code>")[0]
+        except Exception as ex:
+            return
+            # TODO: Fix?
+            raise BrokenServiceException("Could not get back flag")
+        print("FLAG", flag)
+
 
     def putnoise(self) -> None:
         self.logger.info("Starting putnoise")

@@ -1194,7 +1194,7 @@ int handle_login(state_t *state) {
   }
 
 user_not_found:
-  LOG("Login failed for user %s", username);
+  LOG("Login failed for user %s. Expected pw hash %s (len %d) but got (len %d)", username, stored_pw_hash, strlen(stored_pw_hash), strlen(login_pw_hash));
   printf(
 #include "user_not_found.templ"
   );
@@ -1209,6 +1209,7 @@ error:
 /* char * */
 int run(char *cmd, char *param) {
 
+  int i;
   char command[1024];
 
   sprintf(command, cmd, param);
@@ -1235,10 +1236,11 @@ int run(char *cmd, char *param) {
   } else {
 
     int ret_len = strlen(ret);
-    if (ret[ret_len - 2] == '\n') {
-
-      ret[ret_len - 2] = '\0';                             /* strip newline */
-
+    if (ret_len) {
+      for (i = ret_len - 1; ret[i] == '\n' && i >= 0; i--) {
+        /* strip newline endings */
+        ret[i] = '\0';
+      }
     }
 
     LOG("Return was %s\n", ret);
