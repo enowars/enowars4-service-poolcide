@@ -6,7 +6,8 @@ RUN apt-get update && apt-get install -y git
 
 # copy our files in.
 WORKDIR /checker
-RUN wget https://github.com/FiloSottile/age/releases/download/v1.0.0-beta2/age-v1.0.0-beta2-linux-amd64.tar.gz \
+RUN rm -rf ./age \
+    && wget https://github.com/FiloSottile/age/releases/download/v1.0.0-beta2/age-v1.0.0-beta2-linux-amd64.tar.gz \
     && tar -xvf age-v1.0.0-beta2-linux-amd64.tar.gz \
     && mv ./age ./age_dir && mv ./age_dir/age ./age && rm -rf ./age_dir \
     && rm -rf age-*

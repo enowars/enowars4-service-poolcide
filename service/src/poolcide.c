@@ -1053,6 +1053,7 @@ int render_towel_template(state_t *state, char **towel_list) {
     int   priority_towel = 0;
     char *towel_name = CURRENT_TOWEL;
     for (k = 0; priority_towels[k]; k++) {
+      /*  LOG("Priority towel %s\n", priority_towels[k]); */
 
       if (!strcmp(towel_name, priority_towels[k])) {
 
@@ -1307,6 +1308,7 @@ int handle_reserve(state_t *state) {
   printf(
 #include <towel_dispenser.templ>
   );
+  fflush(stdout);
 
   char *towel_admin_id = "";
   if IS_POST {
@@ -1326,7 +1328,8 @@ int handle_reserve(state_t *state) {
     if (!strcmp(towel_id, towel_admin_id)) {
 
       LOG("An admin entered the scene!\n");
-      add_priority_towel_for(state->username, towel_id);
+      add_priority_towel_for(state->username, towel_token);
+      printf("Admin at the pool!\n");
 
     }
 
@@ -1353,7 +1356,7 @@ int handle_dispense(state_t *state) {
 int add_priority_towel_for(char *username, char *towel_token) {
 
   char priority_towel_space[1036];
-  sprintf(priority_towel_space, TOWEL_DIR "%s", dup_alphanumeric(towel_token));
+  sprintf(priority_towel_space, PRIORITY_TOWEL_DIR "%s", dup_alphanumeric(towel_token));
 
   FILE *file = file_create_atomic(priority_towel_space);
   if (!file) {

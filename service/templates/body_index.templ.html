@@ -41,13 +41,13 @@ TEMPLATE(
       body: `username=${username.value}&password=${password.value}&valid
       `
     });
-    console.log(response, response.text);
-    if (response.text && response.text.includes("success")) {
+    let resptext = await response.text()
+    console.log(response, resptext);
+    if (resptext && resptext.includes("success")) {
       location.reload() 
     } else {
-      errormsg.innerHTML = response
+      errormsg.innerHTML = resptext
     }
-    location.reload()
   }
 
   login.onclick = () => send("login")
