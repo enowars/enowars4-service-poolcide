@@ -20,9 +20,11 @@ RUN make clean
 #RUN make tests
 RUN make
 
-USER poolcide
+#USER poolcide
+
+RUN chmod +x "./start.sh"
 
 # POOL (hah, so funny!)
 EXPOSE 9001
 
-ENTRYPOINT ["python3", "poolcgid.py"]
+ENTRYPOINT ["./start.sh"]
