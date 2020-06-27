@@ -62,10 +62,11 @@ class PoolcideChecker(BaseChecker):
 
     def reserve_as_admin(self, cookie: str) -> None:
         # TODO
+        color_string = urllib.parse.quote(self.flag)
         with self.connect() as t:
             t.write(
                 f"POST /cgi-bin/poolcide?route=reserve HTTP/1.0\r\nCookie: poolcode={cookie}\r\n\r\n"
-                f"color={self.flag}\n"
+                f"color={color_string}\n"
             )
             stuff = t.read_until("<code>")
             # TODO expect more stuff
