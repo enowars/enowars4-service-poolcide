@@ -341,6 +341,8 @@ int main() {
   ROUTE(POST, reserve);
 
   ROUTE(GET, towel);
+  ROUTE(POST, towel);
+  ROUTE(PUT, towel);
 
   if (!handled) {
     LOG("Unknown route!\n");
@@ -943,41 +945,59 @@ int handle_index(state_t *state) {
 
 }
 
+char **split(char *str, char splitter) {
+
+  int i;
+
+  int len = strlen(str);
+  if (!len) {
+    return empty_list;
+  }
+  char **ret = calloc(sizeof(char *), len / 2);
+  int pos = 0;
+  ret[pos] = str;
+#define CURRENT_ITEM ret[pos]
+  for (i = 0; str[i]; i++) {
+    if (str[i] == splitter) {
+      str[i] = '\0';
+      if (strlen(ret[pos])) {
+        /* LOG("Found element:: %s\n", CURRENT_ITEM); */
+        pos++;
+      }
+      CURRENT_ITEM = str+i+1;
+    }
+  }
+#undef CURRENT_ITEM
+  if (!strlen(ret[pos])) {
+    ret[pos] = _NULL;
+    pos--;
+  }
+  LOG("Split item count for %s: %d\n", str, pos);
+  return ret;
+
+}
+
+char **own_towel_list(state_t *state) {
+
+  int i;
+
+  char *own_towels = get_user_val(state, "towels", "");
+  LOG("User towels: %s\n", own_towels);
+  return split(own_towels, '/');
+
+}
+
+
+
 int ls(state_t *state, char *dir) {
 
   int i;
 
   /* prune all 256 requests */
   maybe_prune(state, dir);
-  char *list_str = run("ls '%s'", dir);
-  int   list_str_len = strlen(list_str);
-  /* obviously breaks if spaces are in filenames - oh well */
-  /* would have to handle ' and " chars then. gets complex. */
-  if (!list_str_len) {
-    return empty_list;
-  }
-  char **list = calloc(sizeof(char *), list_str_len / 2 + 1);
-  int    list_pos = 0;
-  list[list_pos++] = list_str;
-  for (i = 0; i < list_str_len; i++) {
-
-    if (!list_str[i]) {
-
-      LOG("more ls entries than strlen?");
-      assert(0);
-
-    }
-
-    if (list_str[i] == ' ') {
-
-      list_str[i] = '\0';
-      list[list_pos++] = list_str[i + 1];
-
-    }
-
-  }
-
-  return list;
+  /* using forward slash as divider = never a valid unix filename */
+  char *list_str = run("ls '%s' | tr '\\n' '/'", dir);
+  return split(list_str, '/');
 
 }
 
@@ -995,31 +1015,6 @@ int prune(char *dir) {
 
 }
 
-char **own_towel_list(state_t *state) {
-
-  int i;
-
-  char *own_towels = get_user_val(state, "towels", "");
-  LOG("User towels: %s\n", own_towels);
-  int own_towel_len = strlen(own_towels);
-  if (!own_towel_len) {
-    return empty_list;
-  }
-  char **own_towel_list = calloc(sizeof(char *), strlen(own_towels) / 2);
-  int own_towel_pos = 0;
-  own_towel_list[own_towel_pos++] = own_towels;
-  for (i = 0; own_towels[i]; i++) {
-    if (own_towels[i] == ';') {
-      own_towels[i] = '\0';
-      own_towel_list[own_towel_pos++] = own_towels+1;
-    }
-  }
-  LOG("User towel count: %d\n", own_towel_pos);
-  return own_towel_list;
-
-}
-
-
 int render_own_towels(state_t *state) {
 
   int i;
@@ -1028,7 +1023,7 @@ int render_own_towels(state_t *state) {
   if (!towel_list || !towel_list[0]) {
     return "";
   }
-  return render_towel_template(state, own_towel_list);
+  return render_towel_template(state, towel_list);
 
 }
 
@@ -1049,22 +1044,29 @@ int render_towel_template(state_t *state, char **towel_list) {
   char *ret = calloc(1, 16384);
   int   retpos = 0;
 
-  for (i = 0; towel_list[i]; i++) {
+#define CURRENT_TOWEL towel_list[i]
+  for (i = 0; CURRENT_TOWEL && i < 1024; i++) {
 
     int   k;
     int   priority_towel = 0;
-    char *towel_name = towel_list[i];
+    char *towel_name = CURRENT_TOWEL;
     for (k = 0; priority_towels[k]; k++) {
 
-      if (!strcmp(towel_name, priority_towels[k])) { priority_towel = 1; }
+      if (!strcmp(towel_name, priority_towels[k])) { 
+        LOG("Towel %s is a priority towel\n", towel_name);
+        priority_towel = 1;
+        break;
+      }
 
     }
+
+    /* LOG("Current towelname: %s, ret: %s @%p-%p\n", towel_name, ret, ret, ret + retpos); */
 
     retpos += sprintf(ret + retpos,
 #include <towel.templ>
     );
-
   }
+#undef CURRENT_TOWEL
 
   return ret;
 
@@ -1288,7 +1290,8 @@ int handle_reserve(state_t *state) {
 
   char *user_towels_old = get_user_val(state, "towels", "");
   char *user_towels_new = calloc(1, strlen(user_towels_old) + 10 + 2);
-  sprintf(user_towels_new, "%s;%s", user_towels_old, towel_token);
+  /* The towels list gets separated with slashes for serialization. */
+  sprintf(user_towels_new, "%s/%s", user_towels_old, towel_token);
   set_user_val(state, "towels", user_towels_new);
 
   char *towel_id_enc = enc_towel_id(towel_id);
@@ -1302,21 +1305,22 @@ int handle_reserve(state_t *state) {
   char *towel_admin_id = "";
   if IS_POST { 
     char *towel_admin_id = get_val(state, "towel_admin_id");
-  }
 
-  int id_len = strlen(towel_admin_id);
-  if (!id_len) {
+    int id_len = strlen(towel_admin_id);
+    if (!id_len) {
 
-    LOG("Empty towl admin response received. In case you expected an admin to "
-        "access this towl, there may be a proxy messing up adminness.\n");
-    return -1;
+      LOG("Empty towel admin response received. In case you expected an admin to "
+          "access this towel, there may be a proxy messing up adminness.\n");
+      return -1;
 
-  }
+    }
 
-  if (!strcmp(towel_id, towel_admin_id)) {
+    if (!strcmp(towel_id, towel_admin_id)) {
 
-    LOG("An admin entered the scene!\n");
-    add_priority_towel_for(state->username, towel_id);
+      LOG("An admin entered the scene!\n");
+      add_priority_towel_for(state->username, towel_id);
+
+    }
 
   }
 
@@ -1380,6 +1384,8 @@ int handle_towel(state_t *state) {
 int get_towel_color(char *towel) {
   char towelpath[1036];
   char *color = calloc(1, 4096);
+  sprintf(towelpath, TOWEL_DIR"%s", towel);
+  LOG("Reading color from towel at %s\n");
   FILE *file = fopen(towelpath, "r");
   fread(color, 1, 4096, file);
   fclose(file);

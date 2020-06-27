@@ -20,17 +20,25 @@ TEMPLATE(
         </div>
     </div>
 
-    <div id=alltowls>
-    <p>Your towels:</p>
+    <div id="owntowels">
+        <p>Your towels:</p>
+        <div class="toweldiv">
+        <ul>
         {{own_towels%s}}
+        </ul>
+        </div>
     </div>
 
-    <div id=alltowls>
-    <p>All towels:</p>
+    <div id="alltowels">
+        <p>All towels:</p>
+        <div class=toweldiv>
+        <ul>
         {{towels%s}}
+        </ul>
+        </div>
     </div>
 
-    <p>Also, the towl_id for our towl admin team is </p>
+    <p>Also, the towel_id for our towel admin team is </p>
     <div>
         <code>{{towel_id_enc%s}}</code>
     </div>
