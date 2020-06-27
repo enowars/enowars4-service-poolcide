@@ -38,7 +38,9 @@ class PoolcideChecker(BaseChecker):
             resp = t.read_all()
             try:
                 print(resp)
-                cookie = resp.split(b"Set-Cookie: ")[1].split(b"poolcode=")[1].split(b";")[0]
+                cookie = (
+                    resp.split(b"Set-Cookie: ")[1].split(b"poolcode=")[1].split(b";")[0]
+                )
             except Exception as ex:
                 self.warning(ex)
                 raise BrokenServiceException("Could not read cookie")
@@ -56,7 +58,7 @@ class PoolcideChecker(BaseChecker):
                 f"color=${self.flag}\n"
             )
             stuff = t.read_until("<code>")
-            #TODO expect more stuff
+            # TODO expect more stuff
             if b"admin" not in stuff:
                 raise BrokenServiceException("No valid answer from reserve POST")
             age_foo = t.read_until("<")
@@ -69,9 +71,13 @@ class PoolcideChecker(BaseChecker):
             except Exception as ex:
                 raise BrokenServiceException("Admin token not found")
             n = age_line_len
-            age_lines = [line[i:i+n] for i in range(0, len(line), n)]
-            age = age_begin + '\n' + '\n'.join(age_lines) + '\n' + age_end
-            resp = subprocess.run(["./age", "-d", "-i", AGE_KEYFILE], input=age.encode(), capture_output=True)
+            age_lines = [line[i : i + n] for i in range(0, len(line), n)]
+            age = age_begin + "\n" + "\n".join(age_lines) + "\n" + age_end
+            resp = subprocess.run(
+                ["./age", "-d", "-i", AGE_KEYFILE],
+                input=age.encode(),
+                capture_output=True,
+            )
             admin_id = resp.stdout.strip()
             if len(admin_id) != 16:
                 self.warning("Got ${admin_id} (stderr ${resp.stderr}) from ./age")
@@ -82,7 +88,9 @@ class PoolcideChecker(BaseChecker):
             all = t.read_all()
             if not b"Admin at the pool" in all:
                 self.warning(f"Didn't find admin info in ${all}")
-                raise BrokenServiceException("Could not Administer Towels at the Poolcide.")
+                raise BrokenServiceException(
+                    "Could not Administer Towels at the Poolcide."
+                )
 
         self.warning("Putflag not done yet")
         pass
@@ -93,7 +101,7 @@ class PoolcideChecker(BaseChecker):
         self.team_db[self.flag] = {"user": user, "password": password}
         # TODO: Check returns!
         resp = self.http_get()
-        #print(resp.text)
+        # print(resp.text)
         resp = self.http_get("/cgi-bin/poolcide?route=index")
         self.info("trying to log in")
         cookie = self.register(user, password)
