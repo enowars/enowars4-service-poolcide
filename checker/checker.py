@@ -2,6 +2,8 @@
 import secrets
 import string
 import subprocess
+import html
+import urllib.parse
 from enochecker import BaseChecker, run, BrokenServiceException
 from enochecker.utils import sha256ify
 
@@ -111,6 +113,12 @@ class PoolcideChecker(BaseChecker):
                     "Could not Administer Towels at the Poolcide."
                 )
 
+    def get_towel(self, cookie: str, towel_token: str):
+        with self.connect() as t:
+            t.write(f"GET /cgi-bin/poolcide/poolcide?route=towel&token={towel_token.strip()}\r\nCookie: poolcode={cookie}\r\n\r\n")
+            resp = t.read_all()
+            return resp.decode()
+
     def putflag(self) -> None:
         user = self.random_user()
         password = self.random_password()
@@ -128,21 +136,23 @@ class PoolcideChecker(BaseChecker):
         try:
             user = self.team_db[self.flag]["user"]
             password = self.team_db[self.flag]["password"]
-            towel_id = self.team_db[self.flag + "_towel"]
+            towel_token = self.team_db[self.flag + "_towel"]
         except Exception as ex:
             self.error("Could not get user, password or towlid from db: {ex}")
             raise BrokenServiceException("No stored credentials from putflag in getflag")
         cookie = self.login(user, password)
-        resp = self.http_get("http://localhost:9001/cgi-bin/poolcide/poolcide?route=towel&token={towel_id}", cookies={"poolcode": cookie})
+        resp = self.get_towel(cookie, towel_token)
         try:
-            print(resp.text)
-            flag = resp.text.split("<code>")[1].split("</code>")[0]
+            escaped_flag = resp.split('<code id="color">')[1].split("</code>")[0]
+            self.info(f"Escaped flag is {escaped_flag}")
+            # Flags get url escaped on request by the browser - and html escaped by us.
+            flag = urllib.parse.unquote(html.unescape(escaped_flag))
         except Exception as ex:
-            return
             # TODO: Fix?
-            raise BrokenServiceException("Could not get back flag")
-        print("FLAG", flag)
-
+            raise BrokenServiceException("Could not get back any flag")
+        if flag != self.flag:
+            self.error("Expected flag {self.flag} but got {flag}!")
+            raise BrokenServiceException("Did not get back the valid flag.")
 
     def putnoise(self) -> None:
         self.logger.info("Starting putnoise")

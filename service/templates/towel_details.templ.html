@@ -4,7 +4,11 @@ TEMPLATE(
     <p>The color belongs to you, user {{username%s}}.</p>
     <p>It reserves a spot next to the pool!</p>
     <p>The color code is:</p>
-    <code>{{color%s}}</code>
+    <code id="color">{{color%s}}</code>
     <p>Have a nice day!</p>
+
+<script nonce="{{state->nonce%s}}">
+    color.textContent = decodeURI(color.innerHTML)
+</script>
 </body>
 )

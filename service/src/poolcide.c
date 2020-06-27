@@ -425,7 +425,7 @@ char *escape(char *replace, char *str) {
   }
 
 E4(py, "\\x%2x")
-E4(html, "&#%2x;")
+E4(html, "&#x%2x;")
 E4(hash, "%2x")
 
 /* FILE *(char *) */
