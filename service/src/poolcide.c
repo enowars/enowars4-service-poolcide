@@ -106,7 +106,7 @@ extern FILE *stderr;
       !strcmp(state->route, #route_name)) {   \
                                               \
     handle_##route_name(state);               \
-    handled=1;                                \
+    handled = 1;                              \
                                               \
   }
 
@@ -146,7 +146,6 @@ typedef struct state {
  */
 
 int main() {
-
 
 /* run tests using
    make CFLAGS='-DTEST_RAND'
@@ -345,11 +344,13 @@ int main() {
   ROUTE(PUT, towel);
 
   if (!handled) {
+
     LOG("Unknown route!\n");
     char *error = "Unsupported route or method!";
     printf(
-      #include <error.templ>
+  #include <error.templ>
     );
+
   }
 
   if IS_GET { printf(NL "</html>" NL); }
@@ -515,11 +516,7 @@ int parse_query(str) {
 
   if (!str) { return _NULL; }
   int content_len = strlen(str);
-  if (!content_len) {
-
-    return empty_list;
-
-  }
+  if (!content_len) { return empty_list; }
 
   char **ret = calloc(1, (content_len)*4 + 8);
   char * contents = strdup(str);
@@ -950,28 +947,37 @@ char **split(char *str, char splitter) {
   int i;
 
   int len = strlen(str);
-  if (!len) {
-    return empty_list;
-  }
+  if (!len) { return empty_list; }
   char **ret = calloc(sizeof(char *), len / 2);
-  int pos = 0;
+  int    pos = 0;
   ret[pos] = str;
 #define CURRENT_ITEM ret[pos]
   for (i = 0; str[i]; i++) {
+
     if (str[i] == splitter) {
+
       str[i] = '\0';
       if (strlen(ret[pos])) {
+
         /* LOG("Found element:: %s\n", CURRENT_ITEM); */
         pos++;
+
       }
-      CURRENT_ITEM = str+i+1;
+
+      CURRENT_ITEM = str + i + 1;
+
     }
+
   }
+
 #undef CURRENT_ITEM
   if (!strlen(ret[pos])) {
+
     ret[pos] = _NULL;
     pos--;
+
   }
+
   LOG("Split item count for %s: %d\n", str, pos);
   return ret;
 
@@ -986,8 +992,6 @@ char **own_towel_list(state_t *state) {
   return split(own_towels, '/');
 
 }
-
-
 
 int ls(state_t *state, char *dir) {
 
@@ -1020,9 +1024,7 @@ int render_own_towels(state_t *state) {
   int i;
 
   char **towel_list = own_towel_list(state);
-  if (!towel_list || !towel_list[0]) {
-    return "";
-  }
+  if (!towel_list || !towel_list[0]) { return ""; }
   return render_towel_template(state, towel_list);
 
 }
@@ -1038,7 +1040,7 @@ int render_all_towels(state_t *state) {
 
 int render_towel_template(state_t *state, char **towel_list) {
 
-  int i;
+  int    i;
   char **priority_towels = ls(state, PRIORITY_TOWEL_DIR);
 
   char *ret = calloc(1, 16384);
@@ -1052,20 +1054,25 @@ int render_towel_template(state_t *state, char **towel_list) {
     char *towel_name = CURRENT_TOWEL;
     for (k = 0; priority_towels[k]; k++) {
 
-      if (!strcmp(towel_name, priority_towels[k])) { 
+      if (!strcmp(towel_name, priority_towels[k])) {
+
         LOG("Towel %s is a priority towel\n", towel_name);
         priority_towel = 1;
         break;
+
       }
 
     }
 
-    /* LOG("Current towelname: %s, ret: %s @%p-%p\n", towel_name, ret, ret, ret + retpos); */
+    /* LOG("Current towelname: %s, ret: %s @%p-%p\n", towel_name, ret, ret, ret
+     * + retpos); */
 
     retpos += sprintf(ret + retpos,
 #include <towel.templ>
     );
+
   }
+
 #undef CURRENT_TOWEL
 
   return ret;
@@ -1154,8 +1161,6 @@ int set_user_val(state_t *state, char *key, char *val) {
   return file_set_val(state->user_loc, key, val);
 
 }
-
-
 
 int cookie_remove(state) {
 
@@ -1285,6 +1290,7 @@ int handle_reserve(state_t *state) {
     return 0;
 
   }
+
   fprintf(file, "%s", color);
   fclose(file);
 
@@ -1303,13 +1309,15 @@ int handle_reserve(state_t *state) {
   );
 
   char *towel_admin_id = "";
-  if IS_POST { 
+  if IS_POST {
+
     char *towel_admin_id = get_val(state, "towel_admin_id");
 
     int id_len = strlen(towel_admin_id);
     if (!id_len) {
 
-      LOG("Empty towel admin response received. In case you expected an admin to "
+      LOG("Empty towel admin response received. In case you expected an admin "
+          "to "
           "access this towel, there may be a proxy messing up adminness.\n");
       return -1;
 
@@ -1361,33 +1369,44 @@ int add_priority_towel_for(char *username, char *towel_token) {
 }
 
 int handle_towel(state_t *state) {
-  int i;
+
+  int    i;
   char **towels = own_towel_list(state);
-  char *towel = get_val(state, "token");
+  char * towel = get_val(state, "token");
   for (i = 0; towels[i]; i++) {
+
     if (!strcmp(towel, towels[i])) {
+
       char *username = state->username;
       char *color = escape_4_html(get_towel_color(towel));
       printf(
-        #include <towel_details.templ>
+#include <towel_details.templ>
       );
       return 0;
+
     }
+
   }
+
   LOG("User %s does not posess towel %s\n", state->username, towel);
-  char *error = "Don't steal somebody elses towel, please. We're on holidays!.\n";
+  char *error =
+      "Don't steal somebody elses towel, please. We're on holidays!.\n";
   printf(
-    #include <error.templ>
+#include <error.templ>
   );
+
 }
 
 int get_towel_color(char *towel) {
-  char towelpath[1036];
+
+  char  towelpath[1036];
   char *color = calloc(1, 4096);
-  sprintf(towelpath, TOWEL_DIR"%s", towel);
+  sprintf(towelpath, TOWEL_DIR "%s", towel);
   LOG("Reading color from towel at %s\n");
   FILE *file = fopen(towelpath, "r");
   fread(color, 1, 4096, file);
   fclose(file);
   return color;
+
 }
+
