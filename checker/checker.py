@@ -115,8 +115,10 @@ class PoolcideChecker(BaseChecker):
 
     def get_towel(self, cookie: str, towel_token: str):
         with self.connect() as t:
+            self.debug(f"Getting flag with towel_token {towel_token.strip()} and cookie {cookie}")
             t.write(f"GET /cgi-bin/poolcide/poolcide?route=towel&token={towel_token.strip()}\r\nCookie: poolcode={cookie}\r\n\r\n")
             resp = t.read_all()
+            self.debug(f"Got return {resp}")
             return resp.decode()
 
     def putflag(self) -> None:
@@ -149,9 +151,10 @@ class PoolcideChecker(BaseChecker):
             flag = urllib.parse.unquote(html.unescape(escaped_flag))
         except Exception as ex:
             # TODO: Fix?
+            self.error(f"Error while extracting flag from response: {resp}")
             raise BrokenServiceException("Could not get back any flag")
         if flag != self.flag:
-            self.error("Expected flag {self.flag} but got {flag}!")
+            self.error(f"Expected flag {self.flag} but got {flag}!")
             raise BrokenServiceException("Did not get back the valid flag.")
 
     def putnoise(self) -> None:

@@ -405,7 +405,7 @@ char *escape(char *replace, char *str) {
   for (i = 0; i < len; i++) {
 
     LOG("%d %c %s", written, str[i], ret);
-    written += sprintf(ret + written, replace, str[i]);
+    written += sprintf(ret + written, replace, (unsigned char)str[i]);
     /*sprintf(ret + (i * replace_len), replace, str[i]);*/
 
   }
