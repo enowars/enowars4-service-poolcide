@@ -102,7 +102,7 @@ class PoolcideChecker(BaseChecker):
             )
             admin_id = resp.stdout.strip()
             if len(admin_id) != 16:
-                self.warning("Got {admin_id} (stderr {resp.stderr}) from ./age")
+                self.warning(f"Got {admin_id} (stderr {resp.stderr}) from ./age")
                 raise BrokenServiceException("No valid Admin ID could be found")
             t.write(b"towel_admin_id=")
             t.write(admin_id)
