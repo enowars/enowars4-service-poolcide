@@ -43,12 +43,15 @@ TEMPLATE(
         <code>{{towel_id_enc%s}}</code>
     </div>
     <p> today.</p>
+    <code id="chosencolor">{{color%s}}</code>
     <p>BTW.: please make sure you dont't run poolcide too far away from a pool (for example behind a http proxy)</p>
+    <a href=/>HOME</a>
 
 <script nonce={{state->nonce%s}}>
     if ("{{towel_token%s}}") {
-        token.innerHTML = `<p>Your towel with the ID {{towel_token%s}} and color {{color%s}} got reserved.</p>`
+        token.innerHTML = `<p>Your towel with the ID {{towel_token%s}} and color ${decodeURI(chosencolor.innerHTML)} got reserved.</p>`
     }
+    chosencolor.innerHTML = ""
 </script>
 </body>
 )

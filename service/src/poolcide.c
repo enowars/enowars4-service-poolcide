@@ -404,7 +404,7 @@ char *escape(char *replace, char *str) {
    * replace, str, ret); */
   for (i = 0; i < len; i++) {
 
-    LOG("%d %c %s", written, str[i], ret);
+    /*LOG("%d %c %s", written, str[i], ret);*/
     written += sprintf(ret + written, replace, (unsigned char)str[i]);
     /*sprintf(ret + (i * replace_len), replace, str[i]);*/
 
