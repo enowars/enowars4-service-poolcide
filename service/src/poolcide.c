@@ -946,6 +946,7 @@ char **split(char *str, char splitter) {
 
   int i;
 
+  if (!str) { return empty_list; }
   int len = strlen(str);
   if (!len) { return empty_list; }
   char **ret = calloc(sizeof(char *), len / 2);
