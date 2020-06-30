@@ -55,6 +55,10 @@ TEMPLATE(
         `
     }
     chosencolor.innerHTML = ""
+
+    if (!"{{own_towels%s}}") {
+        owntowels.innerHTML = ""
+    }
 </script>
 </body>
 )
