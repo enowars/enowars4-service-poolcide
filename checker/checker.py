@@ -20,7 +20,7 @@ class PoolcideChecker(BaseChecker):
     port = 9001
     flag_count = 1
     noise_count = 1
-    havoc_count = 1
+    havoc_count = 3
 
     def random_string(self, len) -> str:
         return "".join(secrets.choice(string.ascii_letters) for x in range(len))
@@ -171,7 +171,6 @@ class PoolcideChecker(BaseChecker):
         self.connect()
 
     def exploit(self) -> None:
-        self.logger.warning("Blubb")
         pass
 
 

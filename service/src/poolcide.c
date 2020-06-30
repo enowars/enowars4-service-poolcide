@@ -197,7 +197,7 @@ int main() {
 
   system("mkdir -p " COOKIE_DIR);
   system("mkdir -p " USER_DIR);
-  state_t *state = init_state(_NULL, _NULL);
+  state_t *state = init_state(_NULL, _NULL, _NULL);
   char *   testval = get_val(state, "test");
   if (!testval) {
 
@@ -1023,45 +1023,50 @@ int prune(char *dir) {
 
 int render_own_towels(state_t *state) {
 
-  int i;
-
   char **towel_list = own_towel_list(state);
   if (!towel_list || !towel_list[0]) { return ""; }
-  return render_towel_template(state, towel_list);
+  return render_towel_template(state, towel_list, 0);
 
 }
 
 int render_all_towels(state_t *state) {
 
-  int i;
-
   char **towel_list = ls(state, TOWEL_DIR);
-  return render_towel_template(state, towel_list);
+  if (!towel_list || !towel_list[0]) { return ""; }
+  return render_towel_template(state, towel_list, 1);
 
 }
 
-int render_towel_template(state_t *state, char **towel_list) {
+int render_towel_template(state, towel_list, highlight_priority_towels) {
 
   int    i;
-  char **priority_towels = ls(state, PRIORITY_TOWEL_DIR);
+  char **priority_towels = _NULL;
+  if (highlight_priority_towels) {
+    priority_towels = ls(state, PRIORITY_TOWEL_DIR);
+  }
 
   char *ret = calloc(1, 16384);
   int   retpos = 0;
 
-#define CURRENT_TOWEL towel_list[i]
+#define CURRENT_TOWEL (((char **)towel_list)[i])
   for (i = 0; CURRENT_TOWEL && i < 1024; i++) {
 
     int   k;
     int   priority_towel = 0;
+    char *priority_towel_admin = "";
     char *towel_name = CURRENT_TOWEL;
-    for (k = 0; priority_towels[k]; k++) {
+    int towel_len = strlen(CURRENT_TOWEL);
+    for (k = 0; priority_towels && priority_towels[k]; k++) {
 
       /*  LOG("Priority towel %s\n", priority_towels[k]); */
 
-      if (!strcmp(towel_name, priority_towels[k])) {
+      if (!strncmp(towel_name, priority_towels[k], towel_len)) {
 
-        LOG("Towel %s is a priority towel\n", towel_name);
         priority_towel = 1;
+        /* +1 because we used an underscore as divider ([token]_[name]) */
+        priority_towel_admin = priority_towels[k] + towel_len + 1;
+        if (!priority_towel_admin) { priority_towel_admin = ""; }
+        LOG("Towel %s is a priority towel, owner: %s\n", towel_name);
         break;
 
       }
@@ -1366,8 +1371,8 @@ int handle_dispense(state_t *state) {
 int add_priority_towel_for(char *username, char *towel_token) {
 
   char priority_towel_space[1036];
-  sprintf(priority_towel_space, PRIORITY_TOWEL_DIR "%s",
-          dup_alphanumeric(towel_token));
+  sprintf(priority_towel_space, PRIORITY_TOWEL_DIR "%s_%s",
+          dup_alphanumeric(towel_token), username);
 
   FILE *file = file_create_atomic(priority_towel_space);
   if (!file) {
