@@ -747,7 +747,8 @@ int write_headers(state_t *state) {
       "camera 'self'; magnetometer 'self'; gyroscope 'self'; speaker 'self'; "
       "fullscreen *; payment 'self';" NL "Content-Type: text/html" NL
 
-      "Set-Cookie: " COOKIE_NAME "=%s; HttpOnly" NL NL,
+      "Cache-Control: no-store" NL "Set-Cookie: " COOKIE_NAME
+      "=%s; HttpOnly" NL NL,
       state->nonce, state->nonce, state->cookie);
   return 0;
 
