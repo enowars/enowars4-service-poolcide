@@ -11,6 +11,8 @@ RUN wget https://github.com/FiloSottile/age/releases/download/v1.0.0-beta2/age-v
     && mv ./age ./age_dir && mv ./age_dir/age ./age && rm -rf ./age_dir \
     && rm -rf age-*
 
+RUN pip3 install gevent
+
 COPY . /poolcide
 WORKDIR /poolcide
 
