@@ -15,5 +15,6 @@ RUN rm -rf ./age \
 COPY ./requirements.txt /checker/requirements.txt
 RUN pip3 install -r requirements.txt
 COPY . .
+RUN ls
 
 ENTRYPOINT [ "gunicorn", "-c", "gunicorn.conf.py", "checker:app" ]
