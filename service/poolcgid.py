@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+from gevent import monkey
+monkey.patch_all()
+
 from http.server import ThreadingHTTPServer, CGIHTTPRequestHandler
 
 PORT = 9001
