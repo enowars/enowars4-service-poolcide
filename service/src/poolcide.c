@@ -1016,7 +1016,8 @@ int maybe_prune(state_t *state, char *dir) {
 int prune(char *dir) {
 
   LOG("Pruning all files in %s older than 15 minutes\n", dir);
-  LOG(run("find '%s' -mmin +15 -type f -not -name .gitkeep -exec rm -fv {} \\;",
+  /* mmin -> motification time, amin -> access time */
+  LOG(run("find '%s' -amin +15 -type f -not -name .gitkeep -exec rm -fv {} \\;",
           dir));
 
 }
