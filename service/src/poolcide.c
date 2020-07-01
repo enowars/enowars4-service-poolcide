@@ -1,44 +1,10 @@
-#define RAND_LENGTH (16)
-#define _NULL ((void *)0)
-#define PFATAL(x)   \
-  do {              \
-                    \
-    perror(x);      \
-    fflush(stdout); \
-    fflush(stderr); \
-    abort();        \
-                    \
-  } while (0);
-
-#define FATAL(x...) \
-  do {              \
-                    \
-    LOG(x);         \
-                    \
-  }                 \
-  fflush(stdout);   \
-  fflush(stderr);   \
-  abort();          \
-                    \
-  }                 \
-  while (0)         \
-    ;
-
-#define LOG(x...)       \
-  do {                  \
-                        \
-    fprintf(stderr, x); \
-    fflush(stderr);     \
-                        \
-  } while (0);
-
-#define FILE void
 #define INI_LEN_MAX (256)
 #define DELIM ('=')
 #define KV_SPLIT ('&')
 #define KV_START ('?')
 #define COOKIE_NAME "poolcode"
 #define NL "\r\n"
+#define RAND_LENGTH (16)
 #define QUERY_COUNT (32)
 #define COOKIE_LEN (64)
 
@@ -49,11 +15,15 @@
 #define TOWEL_DIR STORAGE_DIR "towels/"
 #define PRIORITY_TOWEL_DIR STORAGE_DIR "priority_towels/"
 
+/* Why include if you can copy&paste? */
 #define O_WRONLY 01
 #define O_CREAT 0100                                         /* Not fcntl.  */
 #define O_EXCL 0200                                          /* Not fcntl.  */
 #define S_IWUSR 0200                                    /* Write by owner.  */
 #define S_IRUSR 0400                                     /* Read by owner.  */
+
+#define _NULL ((void *)0)
+#define FILE void
 
 extern FILE *stdin;
 extern FILE *stdout;
@@ -61,6 +31,24 @@ extern FILE *stderr;
 
 #define BODY() readline(0)
 #define FILE_NEXT() readline(file)
+
+#define PFATAL(x)   \
+  do {              \
+                    \
+    perror(x);      \
+    fflush(stdout); \
+    fflush(stderr); \
+    abort();        \
+                    \
+  } while (0);
+
+#define LOG(x...)       \
+  do {                  \
+                        \
+    fprintf(stderr, x); \
+    fflush(stderr);     \
+                        \
+  } while (0);
 
 #define KV_FOREACH(kv, block)              \
   do {                                     \
@@ -927,6 +915,36 @@ int parse_cookie(char *cookies) {
 
 }
 
+int csrf_new(state) {
+
+  char *csrf = rand_str(8);
+  cookie_set_val(state, "csrf", csrf);
+  return csrf;
+
+}
+
+int csrf_validate(state) {
+
+  char *csrf_sent = get_val(state, "csrf");
+  char *csrf_stored = cookie_get_val(state, "csrf", _NULL);
+  if (!csrf_stored) {
+    LOG("INTERNAL_ERROR: No valid csrf token could be found for cookie %s!\n", ((state_t *)state)->cookie);
+    abort();
+    return 0;
+  }
+  if (!csrf_stored[0]) {
+    LOG("Tried to write data without requestion CSRF token first\n");
+    return 0;
+  }
+  cookie_set_val(state, "csrf", "");
+  if (strcmp(csrf_sent, csrf_stored)) {
+    LOG("CSRF Validation failed, expected %s but got $s\n", csrf_stored, csrf_sent);
+    return 0;
+  }
+  return 1;
+
+}
+
 int handle_index(state_t *state) {
 
   /*int cf = cookie_file(cookie);*/
@@ -934,6 +952,8 @@ int handle_index(state_t *state) {
 
   char *username = state->username;
   int   logged_in = state->logged_in;
+
+  char *csrf = csrf_new(state);
 
   printf(
 #include "body_index.templ"
@@ -1138,6 +1158,10 @@ int user_create(char *name, char *pass) {
 
 int handle_register(state_t *state) {
 
+  if (!csrf_validate(state)) {
+    trigger_gc(1);
+    goto invalid_username;
+  }
   char *username = dup_alphanumeric(get_val(state, "username"));
   if (!strlen(username)) { goto invalid_username; }
   cookie_set_val(state, "logged_in", "0");
@@ -1147,6 +1171,7 @@ int handle_register(state_t *state) {
   state->username = username;
   state->user_loc = loc_user(state->username);
   cookie_set_val(state, "logged_in", "1");
+  cookie_set_val(state, "csrf", "");
   printf("success");
   return 0;
 invalid_username:
@@ -1181,6 +1206,10 @@ int cookie_remove(state) {
 
 int handle_login(state_t *state) {
 
+  if (!csrf_validate(state)) {
+    trigger_gc(1);
+    goto user_not_found;
+  }
   LOG("Logging in...\n");
   cookie_set_val(state, "logged_in", "0");
   char *username = dup_alphanumeric(get_val(state, "username"));
@@ -1216,7 +1245,7 @@ error:
 }
 
 /* char * */
-int run(char *cmd, char *param) {
+int run(cmd, param) {
 
   int  i;
   char command[1024];
@@ -1288,6 +1317,17 @@ int enc_towel_id(towel_id) {
 }
 
 int handle_reserve(state_t *state) {
+
+  if (!csrf_validate(state)) {
+
+    char *error = "I C you cannot SuRF. - CSRF validation failed.";
+    printf(
+#include <error.templ>
+    );
+    return 0;
+
+  }
+  char *csrf = "";
 
   char *towel_id = rand_str(16);
   char *towel_token = rand_str(10);
@@ -1362,6 +1402,8 @@ int handle_dispense(state_t *state) {
   char *towel_id_enc = enc_towel_id(towel_id);
   char *own_towels = render_own_towels(state);
   char *towels = render_all_towels(state);
+
+  char *csrf = csrf_new(state);
 
   printf(
 #include <towel_dispenser.templ>

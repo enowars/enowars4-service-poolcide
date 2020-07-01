@@ -19,6 +19,7 @@ TEMPLATE(
     <label for="password">Password</label>
     <input type="password" id="password" name="password" />
     </li>
+    <input type="hidden" id="csrf" name="csrf" value="{{csrf%s}}" />
     </ul>
     <button id="register">register</button>
     <button id="login">login</button>
@@ -38,7 +39,7 @@ TEMPLATE(
     console.log("Sending to", route)
     let response = await fetch(route, {
       method: 'POST',
-      body: `username=${username.value}&password=${password.value}&valid
+      body: `username=${username.value}&password=${password.value}&csrf=${csrf.value}
       `
     });
     let resptext = await response.text()
@@ -62,7 +63,6 @@ TEMPLATE(
 
 </script>
 
-
-  </body>
+</body>
 
 )
