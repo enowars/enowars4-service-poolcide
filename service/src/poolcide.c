@@ -928,19 +928,30 @@ int csrf_validate(state) {
   char *csrf_sent = get_val(state, "csrf");
   char *csrf_stored = cookie_get_val(state, "csrf", _NULL);
   if (!csrf_stored) {
-    LOG("INTERNAL_ERROR: No valid csrf token could be found for cookie %s!\n", ((state_t *)state)->cookie);
+
+    LOG("INTERNAL_ERROR: No valid csrf token could be found for cookie %s!\n",
+        ((state_t *)state)->cookie);
     abort();
     return 0;
+
   }
+
   if (!csrf_stored[0]) {
+
     LOG("Tried to write data without requestion CSRF token first\n");
     return 0;
+
   }
+
   cookie_set_val(state, "csrf", "");
   if (strcmp(csrf_sent, csrf_stored)) {
-    LOG("CSRF Validation failed, expected %s but got $s\n", csrf_stored, csrf_sent);
+
+    LOG("CSRF Validation failed, expected %s but got $s\n", csrf_stored,
+        csrf_sent);
     return 0;
+
   }
+
   return 1;
 
 }
@@ -1063,7 +1074,9 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
   int    i;
   char **priority_towels = _NULL;
   if (highlight_priority_towels) {
+
     priority_towels = ls(state, PRIORITY_TOWEL_DIR);
+
   }
 
   char *ret = calloc(1, 16384);
@@ -1076,7 +1089,7 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
     int   priority_towel = 0;
     char *priority_towel_admin = "";
     char *towel_name = CURRENT_TOWEL;
-    int towel_len = strlen(CURRENT_TOWEL);
+    int   towel_len = strlen(CURRENT_TOWEL);
     for (k = 0; priority_towels && priority_towels[k]; k++) {
 
       /*  LOG("Priority towel %s\n", priority_towels[k]); */
@@ -1159,9 +1172,12 @@ int user_create(char *name, char *pass) {
 int handle_register(state_t *state) {
 
   if (!csrf_validate(state)) {
+
     trigger_gc(1);
     goto invalid_username;
+
   }
+
   char *username = dup_alphanumeric(get_val(state, "username"));
   if (!strlen(username)) { goto invalid_username; }
   cookie_set_val(state, "logged_in", "0");
@@ -1207,9 +1223,12 @@ int cookie_remove(state) {
 int handle_login(state_t *state) {
 
   if (!csrf_validate(state)) {
+
     trigger_gc(1);
     goto user_not_found;
+
   }
+
   LOG("Logging in...\n");
   cookie_set_val(state, "logged_in", "0");
   char *username = dup_alphanumeric(get_val(state, "username"));
@@ -1327,6 +1346,7 @@ int handle_reserve(state_t *state) {
     return 0;
 
   }
+
   char *csrf = "";
 
   char *towel_id = rand_str(16);
