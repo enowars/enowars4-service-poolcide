@@ -31,12 +31,12 @@ class PoolcideChecker(BaseChecker):
     def random_password(self) -> str:
         return self.random_string(16)
 
-    def user_request(self, route: str, username: str, password: str) -> str:
+    def user_request(self, route: str, csrf: str, username: str, password: str) -> str:
         self.info(f"Executing {route} as user {username} with password {password}")
         with self.connect() as t:
             # TODO Change order, newlines, ...
             t.write(
-                f"POST /cgi-bin/poolcide?route={route} HTTP/1.0\r\n\r\nusername={username}&password={password}\n"
+                f"POST /cgi-bin/poolcide?route={route} HTTP/1.0\r\n\r\nusername={username}&password={password}&csrf={csrf}\n"
             )
             resp = t.read_all()
             try:
@@ -54,11 +54,11 @@ class PoolcideChecker(BaseChecker):
             self.info(f"Got cookie {cookie}")
             return cookie
 
-    def login(self, username: str, password: str) -> str:
-        return self.user_request("login", username, password)
+    def login(self, csrf: str, username: str, password: str) -> str:
+        return self.user_request("login", csrf, username, password)
 
-    def register(self, username: str, password: str) -> str:
-        return self.user_request("register", username, password)
+    def register(self, csrf: str, username: str, password: str) -> str:
+        return self.user_request("register", csrf, username, password)
 
     def reserve_as_admin(self, cookie: str) -> None:
         # TODO
@@ -129,9 +129,18 @@ class PoolcideChecker(BaseChecker):
         # TODO: Check returns!
         resp = self.http_get()
         # print(resp.text)
-        resp = self.http_get("/cgi-bin/poolcide?route=index")
+        indexresp = self.http_get("/cgi-bin/poolcide?route=index")
+
+        # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" /> 
+        try:
+            csrf = indexresp.text.split('name="csrf" value="')[1].split('" />')[0]
+            self.info(f"Got csrf token {csrf}")
+        except Exception as ex:
+            self.warning("Could not find csrf token", exc_info=ex)
+            raise BrokenServiceException("csrf token could not be found!")
+
         self.info("trying to log in")
-        cookie = self.register(user, password)
+        cookie = self.register(csrf, user, password)
         self.info("Got cookie: %s", cookie)
         self.reserve_as_admin(cookie)
 
@@ -143,7 +152,17 @@ class PoolcideChecker(BaseChecker):
         except Exception as ex:
             self.error("Could not get user, password or towlid from db: {ex}")
             raise BrokenServiceException("No stored credentials from putflag in getflag")
-        cookie = self.login(user, password)
+
+        indexresp = self.http_get("/cgi-bin/poolcide?route=index")
+        # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" /> 
+        try:
+            csrf = indexresp.text.split('name="csrf" value="')[1].split('" />')[0]
+            self.info(f"Got csrf token {csrf}")
+        except Exception as ex:
+            self.warning("Could not find csrf token", exc_info=ex)
+            raise BrokenServiceException("csrf token could not be found!")
+
+        cookie = self.login(csrf, user, password)
         resp = self.get_towel(cookie, towel_token)
         try:
             escaped_flag = resp.split('<code id="color">')[1].split("</code>")[0]
