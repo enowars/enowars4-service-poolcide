@@ -388,13 +388,12 @@ char *escape(char *replace, char *str) {
   /* all the right values for all the wrong reasons */
   int   replace_len = ((strlen(replace) + 2));
   char *ret = calloc(1, len * replace_len);
-  /* printf("len %d, replen %d, rep %s, str %s, ptr %p\n", len, replace_len,
+  /* LOG("len %d, replen %d, rep %s, str %s, ptr %p\n", len, replace_len,
    * replace, str, ret); */
   for (i = 0; i < len; i++) {
 
     /*LOG("%d %c %s", written, str[i], ret);*/
     written += sprintf(ret + written, replace, (unsigned char)str[i]);
-    /*sprintf(ret + (i * replace_len), replace, str[i]);*/
 
   }
 
@@ -649,7 +648,7 @@ int file_set_val(char *filename, char *key_to_write, char *val_to_write) {
   char * keycpy = strdup(key_to_write);
   char * valcpy = strdup(val_to_write);
   char **ini = read_ini(filename);
-  LOG("Setting %s to %s, Read:\n", key_to_write, val_to_write);
+  LOG("Setting %s to %s\n", key_to_write, val_to_write);
   int wrote_val = 0;
   int last_idx = -1;
   KV_FOREACH(ini, {
@@ -696,7 +695,13 @@ int get_val(state_t *state, char *key_to_find) {
     KV_FOREACH(state->queries[i], {
 
       /*LOG("tofind: %s - %s %s\n", key_to_find, key, val);*/
-      if (!strcmp(key, key_to_find)) { return val; }
+      if (!strcmp(key, key_to_find)) {
+
+        int len = strlen(val);
+        if (val[len - 1] <= ' ') { val[len - 1] = '\0'; }
+        return val;
+
+      }
 
     });
 
@@ -946,8 +951,8 @@ int csrf_validate(state) {
   cookie_set_val(state, "csrf", "");
   if (strcmp(csrf_sent, csrf_stored)) {
 
-    LOG("CSRF Validation failed, expected %s but got $s\n", csrf_stored,
-        csrf_sent);
+    LOG("CSRF Validation failed, expected %s (len %d) but got %s (len %d)\n",
+        csrf_stored, strlen(csrf_stored), csrf_sent, strlen(csrf_sent));
     return 0;
 
   }

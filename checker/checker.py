@@ -5,7 +5,7 @@ import subprocess
 import html
 import urllib.parse
 from enochecker import BaseChecker, run, BrokenServiceException
-from enochecker.utils import sha256ify
+from enochecker.utils import *
 
 # created: 2020-06-25T23:34:03+02:00
 AGE_PUBLIC_KEY = "age1mngxnym3sz9t8jtyfsl43szh4pg070g857khq6zpw3h9l37v3gdqs2nrlx"
@@ -14,6 +14,12 @@ AGE_SECRET_KEY = (
 )
 
 AGE_KEYFILE = "./age_key"
+
+class THTTP(SimpleSocket):
+
+    def http(route, method=get, payload, cookies):
+
+        return response
 
 
 class PoolcideChecker(BaseChecker):
@@ -31,41 +37,50 @@ class PoolcideChecker(BaseChecker):
     def random_password(self) -> str:
         return self.random_string(16)
 
-    def user_request(self, route: str, csrf: str, username: str, password: str) -> str:
+    def parse_cookie(self, response: Union[bytes, str]) -> str:
+        response = ensure_unicode(response)
+        try:
+            cookie = (
+                resp.split("Set-Cookie: ")[1].split("poolcode=")[1].split(";")[0]
+            ).decode()
+        except Exception as ex:
+            self.warning(ex)
+            raise BrokenServiceException("Could not read cookie")
+        return cookie
+            
+
+    def user_request(self, route: str, cookie, csrf: str, username: str, password: str) -> str:
         self.info(f"Executing {route} as user {username} with password {password}")
         with self.connect() as t:
             # TODO Change order, newlines, ...
             t.write(
-                f"POST /cgi-bin/poolcide?route={route} HTTP/1.0\r\n\r\nusername={username}&password={password}&csrf={csrf}\n"
+                f"POST /cgi-bin/poolcide?route={route} HTTP/1.0\r\n" \
+                f"Cookie: poolcode={cookie}\r\nusername={username}&password={password}&csrf={csrf}\n"
             )
             resp = t.read_all()
-            try:
-                self.debug(resp)
-                cookie = (
-                    resp.split(b"Set-Cookie: ")[1].split(b"poolcode=")[1].split(b";")[0]
-                )
-            except Exception as ex:
-                self.warning(ex)
-                raise BrokenServiceException("Could not read cookie")
+            new_cookie = self.parse_cookie(resp)
+           
+            assert_equals(cookie, new_cookie);
+            
             if not b"success" in resp:
                 self.error(f"No success response, instead got {resp}")
                 raise BrokenServiceException("Login failed")
-            cookie = cookie.decode()
             self.info(f"Got cookie {cookie}")
             return cookie
 
-    def login(self, csrf: str, username: str, password: str) -> str:
-        return self.user_request("login", csrf, username, password)
+    def login(self, cookie: str, csrf: str, username: str, password: str) -> str:
+        return self.user_request("login", cookie, csrf, username, password)
 
-    def register(self, csrf: str, username: str, password: str) -> str:
-        return self.user_request("register", csrf, username, password)
+    def register(self, cookie: str, csrf: str, username: str, password: str) -> str:
+        return self.user_request("register", cookie, csrf, username, password)
 
     def reserve_as_admin(self, cookie: str) -> None:
         # TODO
         color_string = urllib.parse.quote(self.flag)
         with self.connect() as t:
             t.write(
-                f"POST /cgi-bin/poolcide?route=reserve HTTP/1.0\r\nCookie: poolcode={cookie}\r\n\r\n"
+                f"POST /cgi-bin/poolcide?route=reserve HTTP/1.0\r\n" \
+                f"Cookie: poolcode={cookie}\r\n\r\n" \
                 f"color={color_string}\n"
             )
             stuff = t.read_until("<code>")
@@ -127,8 +142,25 @@ class PoolcideChecker(BaseChecker):
         password = self.random_password()
         self.team_db[self.flag] = {"user": user, "password": password}
         # TODO: Check returns!
-        resp = self.http_get()
+        # resp = self.http_get()
         # print(resp.text)
+        with self.connect() as t:
+            # TODO Change order, newlines, ...
+            t.write(
+                f"GET /cgi-bin/poolcide?route={index} HTTP/1.0\r\n\r\n"
+            )
+            resp = t.read_all()
+            new_cookie = self.parse_cookie(resp)
+           
+            assert_equals(cookie, new_cookie);
+            
+            if not b"success" in resp:
+                self.error(f"No success response, instead got {resp}")
+                raise BrokenServiceException("Login failed")
+            self.info(f"Got cookie {cookie}")
+            return cookie
+
+
         indexresp = self.http_get("/cgi-bin/poolcide?route=index")
 
         # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" /> 
@@ -138,6 +170,14 @@ class PoolcideChecker(BaseChecker):
         except Exception as ex:
             self.warning("Could not find csrf token", exc_info=ex)
             raise BrokenServiceException("csrf token could not be found!")
+
+        try:
+            cookies = self.http_session.cookies.get_dict()
+            print(f"All cookies: {cookies}")
+            cookie = cookies["poolcode"]
+        except Exception as ex:
+            self.warning(f"Cookie not found! {ex}")
+            raise BrokenServiceException("Cookie could not be found!")
 
         self.info("trying to log in")
         cookie = self.register(csrf, user, password)
