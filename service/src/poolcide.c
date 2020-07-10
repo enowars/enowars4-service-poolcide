@@ -309,10 +309,8 @@ int main() {
 
   write_headers(state);
 
-  if IS_GET {                                         /* AJAX State of mind */
-    write_head(state);
-
-  }
+  /* AJAX State of mind */
+  if IS_GET { write_head(state); }
 
   LOG("Started %s %s - %s %s \n", state->method, state->route, query_string,
       script_name);
@@ -728,8 +726,8 @@ int file_get_val(char *filename, char *key_to_find, char *default_val) {
 
 int write_headers(state_t *state) {
 
+  write_palmtree();
   printf(
-      /* TODO: Use CSP Nonce */
       "Content-Security-Policy: script-src 'nonce-%s'; style-src 'nonce-%s'"
       " https://fonts.googleapis.com/css2?family=Lobster&display=swap;" NL
       "X-Frame-Options: SAMEORIGIN" NL "X-Xss-Protection: 1; mode=block" NL
@@ -744,6 +742,21 @@ int write_headers(state_t *state) {
       "=%s; HttpOnly" NL NL,
       state->nonce, state->nonce, state->cookie);
   return 0;
+
+}
+
+int write_palmtree() {
+
+  printf("PALM-0: |       __ _.--..--._ _" NL
+         "PALM-1: |    .-' _/   _/\\_   \\_'-." NL
+         "PALM-2: |   |__ / 🦜 _/\\__/\\_   \\__|" NL
+         "PALM-3: |      |___/\\_\\__/  \\___|" NL
+         "PALM-4: |             \\__/     " NL
+         "PALM-5: |              \\__/ " NL
+         "PALM-6: |               \\__/        |>" NL
+         "PALM-7: |       __🥥____.~\\__/~.____|" NL
+         "PALM-8: |     /  ENO                 \\" NL
+         "PALM-9: |~~~~~~  ~~~~~ ~~!~~  ~~~ 🌊🌊~ ~~~" NL);
 
 }
 

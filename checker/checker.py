@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import secrets
+import random
 import string
 import subprocess
 import html
@@ -15,12 +16,28 @@ AGE_SECRET_KEY = (
 
 AGE_KEYFILE = "./age_key"
 
-class THTTP(SimpleSocket):
+with open("users.txt") as f:
+    users = f.readlines()
 
-    def http(route, method=get, payload, cookies):
+def build_http(route: str="/cgi-bin/poolcide", method: str="GET", get_params: Dict[str, str]={}, body_params: Dict[str, str]={}, cookies: Dict[str, str]={}) -> str:
+        shuffled_gets = list(get_params.keys())
+        random.shuffle(shuffled_gets)
+        shuffled_body = list(body_params.keys())
+        random.shuffle(shuffled_body)
+        gets = "&".join([f"{x}={get_params[x]}" for x in shuffled_gets])
+        body = "\n".join([f"{x}={body_params[x]}" for x in shuffled_body]) + "\n"
 
-        return response
+        shuffled_cookies = list(cookies.keys())
+        if len(shuffled_cookies):
+            random.shuffle(cookies)
+            cookie_str = "Cookies: " + ";".join([f"{x}={cookies[x]}" for x in cookies])
+        else:
+            cookie_str = ""
 
+        req = f"{method.upper()} {route}?{gets} HTTP/1.0\r\n" \
+            f"{cookie_str}\r\n\r\n" \
+            f"{body}"
+        return req
 
 class PoolcideChecker(BaseChecker):
     port = 9001
@@ -32,7 +49,7 @@ class PoolcideChecker(BaseChecker):
         return "".join(secrets.choice(string.ascii_letters) for x in range(len))
 
     def random_user(self) -> str:
-        return self.random_string(8)
+        return secrets.choice(users)
 
     def random_password(self) -> str:
         return self.random_string(16)
@@ -40,9 +57,7 @@ class PoolcideChecker(BaseChecker):
     def parse_cookie(self, response: Union[bytes, str]) -> str:
         response = ensure_unicode(response)
         try:
-            cookie = (
-                resp.split("Set-Cookie: ")[1].split("poolcode=")[1].split(";")[0]
-            ).decode()
+            cookie = response.split("Set-Cookie: poolcode=")[1].split(";")[0]
         except Exception as ex:
             self.warning(ex)
             raise BrokenServiceException("Could not read cookie")
@@ -52,12 +67,14 @@ class PoolcideChecker(BaseChecker):
     def user_request(self, route: str, cookie, csrf: str, username: str, password: str) -> str:
         self.info(f"Executing {route} as user {username} with password {password}")
         with self.connect() as t:
-            # TODO Change order, newlines, ...
-            t.write(
-                f"POST /cgi-bin/poolcide?route={route} HTTP/1.0\r\n" \
-                f"Cookie: poolcode={cookie}\r\nusername={username}&password={password}&csrf={csrf}\n"
-            )
+            http = build_http(method="POST", get_params={"route": route}, cookies={"poolcode": cookie}, body_params={
+                "username": username,
+                "password": password,
+                "csrf": csrf
+            })
+            t.write(http)
             resp = t.read_all()
+            print(resp)
             new_cookie = self.parse_cookie(resp)
            
             assert_equals(cookie, new_cookie);
@@ -141,47 +158,39 @@ class PoolcideChecker(BaseChecker):
         user = self.random_user()
         password = self.random_password()
         self.team_db[self.flag] = {"user": user, "password": password}
+        self.info(f"Random username: {user}, random password {password}")
         # TODO: Check returns!
-        # resp = self.http_get()
-        # print(resp.text)
         with self.connect() as t:
             # TODO Change order, newlines, ...
             t.write(
-                f"GET /cgi-bin/poolcide?route={index} HTTP/1.0\r\n\r\n"
+                f"GET /cgi-bin/poolcide?route=index HTTP/1.0\r\n\r\n"
             )
-            resp = t.read_all()
+            resp = ensure_unicode(t.read_all())
+            self.debug(f"Got response {resp}")
             new_cookie = self.parse_cookie(resp)
            
-            assert_equals(cookie, new_cookie);
-            
-            if not b"success" in resp:
+            if not "success" in resp:
                 self.error(f"No success response, instead got {resp}")
                 raise BrokenServiceException("Login failed")
-            self.info(f"Got cookie {cookie}")
-            return cookie
-
-
-        indexresp = self.http_get("/cgi-bin/poolcide?route=index")
+            self.info(f"Got cookie {new_cookie}")
 
         # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" /> 
         try:
-            csrf = indexresp.text.split('name="csrf" value="')[1].split('" />')[0]
+            csrf = resp.split('name="csrf" value="')[1].split('" />')[0]
             self.info(f"Got csrf token {csrf}")
         except Exception as ex:
             self.warning("Could not find csrf token", exc_info=ex)
             raise BrokenServiceException("csrf token could not be found!")
 
         try:
-            cookies = self.http_session.cookies.get_dict()
-            print(f"All cookies: {cookies}")
-            cookie = cookies["poolcode"]
+            cookie = self.parse_cookie(resp)
         except Exception as ex:
             self.warning(f"Cookie not found! {ex}")
             raise BrokenServiceException("Cookie could not be found!")
 
         self.info("trying to log in")
-        cookie = self.register(csrf, user, password)
-        self.info("Got cookie: %s", cookie)
+        cookie = self.register(cookie, csrf, user, password)
+        
         self.reserve_as_admin(cookie)
 
     def getflag(self) -> None:
@@ -193,7 +202,10 @@ class PoolcideChecker(BaseChecker):
             self.error("Could not get user, password or towlid from db: {ex}")
             raise BrokenServiceException("No stored credentials from putflag in getflag")
 
-        indexresp = self.http_get("/cgi-bin/poolcide?route=index")
+        req = build_http(get_params={"route": "index"})
+        with self.connect() as sock:
+            sock.write(req)
+            indexresp = sock.read_all()
         # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" /> 
         try:
             csrf = indexresp.text.split('name="csrf" value="')[1].split('" />')[0]
