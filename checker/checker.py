@@ -25,12 +25,12 @@ assert len(users) > 100
 
 # noinspection PyDefaultArgument
 def build_http(
-        route: str = "/cgi-bin/poolcide",
-        method: str = "GET",
-        params: Dict[str, str] = {},
-        query_params: Dict[str, str] = {},
-        body_params: Dict[str, str] = {},
-        cookies: Dict[str, str] = {},
+    route: str = "/cgi-bin/poolcide",
+    method: str = "GET",
+    params: Dict[str, str] = {},
+    query_params: Dict[str, str] = {},
+    body_params: Dict[str, str] = {},
+    cookies: Dict[str, str] = {},
 ) -> str:
     """
     anything passed in params parameter goes either to query or body,
@@ -110,7 +110,7 @@ class PoolcideChecker(BaseChecker):
         return cookie
 
     def user_request(
-            self, route: str, cookie: str, csrf: str, username: str, password: str
+        self, route: str, cookie: str, csrf: str, username: str, password: str
     ) -> Tuple[str, str, str]:
         """
         return: Tuple(response, cookie, csrf)
@@ -138,12 +138,12 @@ class PoolcideChecker(BaseChecker):
             return resp, cookie, csrf
 
     def login(
-            self, cookie: str, csrf: str, username: str, password: str
+        self, cookie: str, csrf: str, username: str, password: str
     ) -> Tuple[str, str, str]:
         return self.user_request("login", cookie, csrf, username, password)
 
     def register(
-            self, cookie: str, csrf: str, username: str, password: str
+        self, cookie: str, csrf: str, username: str, password: str
     ) -> Tuple[str, str, str]:
         return self.user_request("register", cookie, csrf, username, password)
 
@@ -177,7 +177,6 @@ class PoolcideChecker(BaseChecker):
             )
             t.write(http)
             stuff = t.read_until("<code>")
-            # TODO expect more stuff
             if b"admin" not in stuff:
                 raise BrokenServiceException(f"No valid answer from reserve {method}")
 
@@ -204,7 +203,7 @@ class PoolcideChecker(BaseChecker):
             except Exception as ex:
                 raise BrokenServiceException("Admin token not found")
             n = age_line_len
-            age_lines = [line[i: i + n] for i in range(0, len(line), n)]
+            age_lines = [line[i : i + n] for i in range(0, len(line), n)]
             age = age_begin + "\n" + "\n".join(age_lines) + "\n" + age_end
             resp = subprocess.run(
                 ["./age", "-d", "-i", AGE_KEYFILE],
@@ -270,7 +269,6 @@ class PoolcideChecker(BaseChecker):
             # Flags get url escaped on request by the browser - and html escaped by us.
             flag = urllib.parse.unquote(html.unescape(escaped_flag))
         except Exception as ex:
-            # TODO: Fix?
             self.error(f"Error while extracting flag from response: {resp}")
             raise BrokenServiceException("Could not get back any flag")
         if flag != self.flag:
@@ -333,13 +331,11 @@ class PoolcideChecker(BaseChecker):
             # Flags get url escaped on request by the browser - and html escaped by us.
             flag = urllib.parse.unquote(html.unescape(escaped_flag))
         except Exception as ex:
-            # TODO: Fix?
             self.error(f"Error while extracting flag from response: {resp}")
             raise BrokenServiceException("Could not get back any flag")
         if flag != self.flag:
             self.error(f"Expected flag {self.flag} but got {flag}!")
             raise BrokenServiceException("Did not get back the valid flag.")
-
 
     def havoc(self) -> None:
         branch = secrets.randbelow(1)

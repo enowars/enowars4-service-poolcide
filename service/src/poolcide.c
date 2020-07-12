@@ -252,7 +252,9 @@ int main() {
 
 #elif defined(TEST_ESCAPE)
 
-  assert(!strcmp(escape_4_html("AA"), "&#41;&#41;"));
+  printf("AA 4html = %s\n", escape_4_html("AA"));
+  assert(!strcmp(escape_4_html("AA"), "&#x41;&#x41;"));
+  printf("AA 4py = %s\n", escape_4_py("AA"));
   assert(!strcmp(escape_4_py("AA"), "\\x41\\x41"));
   return 0;
 
@@ -266,11 +268,15 @@ int main() {
 
   /* THE ACTUAL MAIN */
 
+  // clang-format off
   #ifdef RELEASE
   alarm(15);
   #endif
+  
+  https://www.openroad.org/cgi-bin/cgienvdemo
 
-  /*https://www.openroad.org/cgi-bin/cgienvdemo*/
+  LOG("Reading CGI env");
+
   char *current_cookies = getenv("HTTP_COOKIE");
   char *request_method = getenv("REQUEST_METHOD");
   char *query_string = getenv("QUERY_STRING");
@@ -280,6 +286,7 @@ int main() {
   char **cookie_kv = parse_query(current_cookies);
 
   char *cookie = "";
+  // clang-format on
   KV_FOREACH(cookie_kv, {
 
     if (!strcmp(key, COOKIE_NAME)) {
@@ -1159,12 +1166,12 @@ void file_delete(char *filename) {
 /* returns 0 on error / if :user exists */
 int user_create(char *name, char *pass) {
 
+  // clang-format off
   char *user_loc = loc_user(name);
   FILE *file = file_create_atomic(user_loc);
 
-  /* Should be reasonably atomic, see
-   * https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
-   */
+  https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
+
   if (!file) {
 
     /* failure */
@@ -1183,6 +1190,7 @@ int user_create(char *name, char *pass) {
 
   fclose(file);
   return 1;
+  // clang-format on
 
 }
 
@@ -1308,12 +1316,18 @@ int run(cmd, param) {
 
   } else {
 
+    // clang-format off
     int ret_len = strlen(ret);
+
     if (ret_len) {
 
-      for (i = ret_len - 1; ret[i] == '\n' && i >= 0; i--) {
+      i = ret_len - 1;
 
-        /* strip newline endings */
+      /* strip newline endings, i downto 0 */
+
+      while (i --> 0) {
+
+        if (ret[i] != '\n') { break; }
         ret[i] = '\0';
 
       }
@@ -1321,6 +1335,7 @@ int run(cmd, param) {
     }
 
     LOG("Return was %s\n", ret);
+    // clang-format on
 
   }
 

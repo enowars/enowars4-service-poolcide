@@ -20,7 +20,7 @@ RUN rm -rf ./age && mv /tmp/age . && chmod 777 ./age
 
 # building poolcide
 RUN make clean
-#RUN make tests
+# RUN make tests
 RUN make
 
 #USER poolcide
