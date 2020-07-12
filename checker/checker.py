@@ -25,12 +25,12 @@ assert len(users) > 100
 
 # noinspection PyDefaultArgument
 def build_http(
-    route: str = "/cgi-bin/poolcide",
-    method: str = "GET",
-    params: Dict[str, str] = {},
-    query_params: Dict[str, str] = {},
-    body_params: Dict[str, str] = {},
-    cookies: Dict[str, str] = {},
+        route: str = "/cgi-bin/poolcide",
+        method: str = "GET",
+        params: Dict[str, str] = {},
+        query_params: Dict[str, str] = {},
+        body_params: Dict[str, str] = {},
+        cookies: Dict[str, str] = {},
 ) -> str:
     """
     anything passed in params parameter goes either to query or body,
@@ -86,7 +86,7 @@ def build_http(
 class PoolcideChecker(BaseChecker):
     port = 9001
     flag_count = 1
-    noise_count = 1
+    noise_count = 2
     havoc_count = 1
 
     def random_string(self, len) -> str:
@@ -110,7 +110,7 @@ class PoolcideChecker(BaseChecker):
         return cookie
 
     def user_request(
-        self, route: str, cookie: str, csrf: str, username: str, password: str
+            self, route: str, cookie: str, csrf: str, username: str, password: str
     ) -> Tuple[str, str, str]:
         """
         return: Tuple(response, cookie, csrf)
@@ -138,16 +138,16 @@ class PoolcideChecker(BaseChecker):
             return resp, cookie, csrf
 
     def login(
-        self, cookie: str, csrf: str, username: str, password: str
+            self, cookie: str, csrf: str, username: str, password: str
     ) -> Tuple[str, str, str]:
         return self.user_request("login", cookie, csrf, username, password)
 
     def register(
-        self, cookie: str, csrf: str, username: str, password: str
+            self, cookie: str, csrf: str, username: str, password: str
     ) -> Tuple[str, str, str]:
         return self.user_request("register", cookie, csrf, username, password)
 
-    def reserve_as_admin(self, cookie: str) -> None:
+    def reserve(self, cookie: str, as_admin: bool) -> None:
         color_string = urllib.parse.quote(self.flag)
         with self.connect() as t:
             http = build_http(
@@ -166,9 +166,11 @@ class PoolcideChecker(BaseChecker):
             self.warning(f"Could not read csrf token: {ex}")
             raise BrokenServiceException("No csrf token found in route=dispense")
 
+        # POST has a special handling, waiting for the admin key in the body.
+        method = "POST" if as_admin else "GET"
         with self.connect() as t:
             http = build_http(
-                method="POST",
+                method=method,
                 query_params={"route": "reserve"},
                 params={"color": color_string, "csrf": csrf},
                 cookies={"poolcode": cookie},
@@ -177,7 +179,7 @@ class PoolcideChecker(BaseChecker):
             stuff = t.read_until("<code>")
             # TODO expect more stuff
             if b"admin" not in stuff:
-                raise BrokenServiceException("No valid answer from reserve POST")
+                raise BrokenServiceException(f"No valid answer from reserve {method}")
 
             content = t.read_until("</body>")
             content = content.decode()[:-1]
@@ -186,11 +188,14 @@ class PoolcideChecker(BaseChecker):
                 self.debug(f"reserve page content is {content}")
                 towel_id = content.split("ID ")[1].split(" and")[0]
                 self.info(f"Got towel id {towel_id}")
+                # Storing towel_token
                 self.team_db[self.flag + "_towel"] = towel_id
             except Exception as ex:
                 self.warning(ex)
                 raise BrokenServiceException("Could not get Towel ID")
 
+            if not as_admin:
+                return
             age_begin = "-----BEGIN AGE ENCRYPTED FILE-----"
             age_end = "-----END AGE ENCRYPTED FILE-----"
             age_line_len = 64
@@ -199,7 +204,7 @@ class PoolcideChecker(BaseChecker):
             except Exception as ex:
                 raise BrokenServiceException("Admin token not found")
             n = age_line_len
-            age_lines = [line[i : i + n] for i in range(0, len(line), n)]
+            age_lines = [line[i: i + n] for i in range(0, len(line), n)]
             age = age_begin + "\n" + "\n".join(age_lines) + "\n" + age_end
             resp = subprocess.run(
                 ["./age", "-d", "-i", AGE_KEYFILE],
@@ -237,38 +242,12 @@ class PoolcideChecker(BaseChecker):
         password = self.random_password()
         self.team_db[self.flag] = {"user": user, "password": password}
         self.info(f"Random username: {user}, random password {password}")
-        # TODO: Check returns!
-        with self.connect() as t:
-            # TODO Change order, newlines, ...
-            t.write(f"GET /cgi-bin/poolcide?route=index HTTP/1.0\r\n\r\n")
-            resp = ensure_unicode(t.read_all())
-            self.debug(f"Got response {resp}")
-            new_cookie = self.parse_cookie(resp)
-
-            if not "success" in resp:
-                self.error(f"No success response, instead got {resp}")
-                raise BrokenServiceException("Login failed")
-            self.info(f"Got cookie {new_cookie}")
-
-        # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" />
-        try:
-            csrf = resp.split('name="csrf" value="')[1].split('" />')[0]
-            self.info(f"Got csrf token {csrf}")
-        except Exception as ex:
-            self.warning("Could not find csrf token", exc_info=ex)
-            raise BrokenServiceException("csrf token could not be found!")
-
-        try:
-            cookie = self.parse_cookie(resp)
-        except Exception as ex:
-            self.warning(f"Cookie not found! {ex}")
-            raise BrokenServiceException("Cookie could not be found!")
-
+        resp, cookie, csrf = self.request_index()
         self.info("trying to log in")
         resp, cookie, csrf = self.register(cookie, csrf, user, password)
         self.info(f"Logged in as {user}")
 
-        self.reserve_as_admin(cookie)
+        self.reserve(cookie, as_admin=True)
 
     def getflag(self) -> None:
         try:
@@ -281,19 +260,7 @@ class PoolcideChecker(BaseChecker):
                 "No stored credentials from putflag in getflag"
             )
 
-        req = build_http(query_params={"route": "index"})
-        with self.connect() as sock:
-            sock.write(req)
-            indexresp = ensure_unicode(sock.read_all())
-        # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" />
-        try:
-            csrf = indexresp.split('name="csrf" value="')[1].split('" />')[0]
-            self.info(f"Got csrf token {csrf}")
-        except Exception as ex:
-            self.warning("Could not find csrf token", exc_info=ex)
-            raise BrokenServiceException("csrf token could not be found!")
-
-        cookie = self.parse_cookie(indexresp)
+        resp, cookie, csrf = self.request_index()
 
         resp, cookie, csrf = self.login(cookie, csrf, user, password)
         resp = self.get_towel(cookie, towel_token)
@@ -310,20 +277,75 @@ class PoolcideChecker(BaseChecker):
             self.error(f"Expected flag {self.flag} but got {flag}!")
             raise BrokenServiceException("Did not get back the valid flag.")
 
+    # noinspection PyDefaultArgument
+    def request_index(self, cookies={}):
+        req = build_http(query_params={"route": "index"}, cookies=cookies)
+        with self.connect() as sock:
+            sock.write(req)
+            indexresp = ensure_unicode(sock.read_all())
+        # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" />
+        try:
+            csrf = indexresp.split('name="csrf" value="')[1].split('" />')[0]
+            self.info(f"Got csrf token {csrf}")
+        except Exception as ex:
+            self.warning("Could not find csrf token", exc_info=ex)
+            raise BrokenServiceException("csrf token could not be found!")
+        cookie = self.parse_cookie(indexresp)
+        return indexresp, cookie, csrf
+
     def putnoise(self) -> None:
-        self.logger.info("Starting putnoise")
-        self.connect()
+        user = self.random_user()
+        password = self.random_password()
+        self.info(f"Random username: {user}, random password {password}")
+        resp, cookie, csrf = self.request_index()
+        self.info("trying to log in")
+        resp, cookie, csrf = self.register(cookie, csrf, user, password)
+        self.info(f"Logged in as {user}")
+
+        self.team_db[self.flag] = {"user": user, "password": password, "cookie": cookie}
+
+        self.reserve(cookie, as_admin=False)
 
     def getnoise(self) -> None:
-        self.logger.info("Starting getnoise")
-        self.connect()
+        try:
+            user = self.team_db[self.flag]["user"]
+            password = self.team_db[self.flag]["password"]
+            cookie = self.team_db[self.flag]["cookie"]
+            towel_token = self.team_db[self.flag + "_towel"]
+        except Exception as ex:
+            self.error("Could not get user, password or towlid from db: {ex}")
+            raise BrokenServiceException(
+                "No stored credentials from putflag in getflag"
+            )
+
+        if self.flag_idx % 2:
+            cookies = {"poolcode": cookie}
+            resp, cookie, csrf = self.request_index(cookies)
+            assert_equals(cookie, cookies["poolcode"])
+        else:
+            # do a fresh login.
+            resp, cookie, csrf = self.request_index()
+            resp, cookie, csrf = self.login(cookie, csrf, user, password)
+        resp = self.get_towel(cookie, towel_token)
+        try:
+            escaped_flag = resp.split('<code id="color">')[1].split("</code>")[0]
+            self.info(f"Escaped flag is {escaped_flag}")
+            # Flags get url escaped on request by the browser - and html escaped by us.
+            flag = urllib.parse.unquote(html.unescape(escaped_flag))
+        except Exception as ex:
+            # TODO: Fix?
+            self.error(f"Error while extracting flag from response: {resp}")
+            raise BrokenServiceException("Could not get back any flag")
+        if flag != self.flag:
+            self.error(f"Expected flag {self.flag} but got {flag}!")
+            raise BrokenServiceException("Did not get back the valid flag.")
+
 
     def havoc(self) -> None:
         branch = secrets.randbelow(1)
         if branch == 1:
             resp = self.http_get("cgi-bin/")
             assert_in("FORBIDDEN", resp.text, "Diret access to cgi-bin not FORBIDDEN")
-            
 
     def exploit(self) -> None:
         pass
