@@ -114,7 +114,7 @@ class PoolcideChecker(BaseChecker):
         return: Tuple(response, cookie, csrf)
         """
         self.info(f"Executing {route} as user {username} with password {password}")
-        with self.connect() as t:
+        with self.connect(retries=5) as t:
             http = build_http(
                 method="POST",
                 query_params={"route": route},
@@ -143,7 +143,7 @@ class PoolcideChecker(BaseChecker):
 
     def reserve_as_admin(self, cookie: str) -> None:
         color_string = urllib.parse.quote(self.flag)
-        with self.connect() as t:
+        with self.connect(retries=5) as t:
             http = build_http(
                 method="GET",
                 query_params={"route": "dispense"},
@@ -160,7 +160,7 @@ class PoolcideChecker(BaseChecker):
             self.warning(f"Could not read csrf token: {ex}")
             raise BrokenServiceException("No csrf token found in route=dispense")
 
-        with self.connect() as t:
+        with self.connect(retries=5) as t:
             http = build_http(method="POST", query_params={"route": "reserve"}, params={"color": color_string, "csrf": csrf}, cookies={"poolcode": cookie})
             t.write(http)
             stuff = t.read_until("<code>")
@@ -210,7 +210,7 @@ class PoolcideChecker(BaseChecker):
                 )
 
     def get_towel(self, cookie: str, towel_token: str):
-        with self.connect() as t:
+        with self.connect(retries=5) as t:
             self.debug(
                 f"Getting flag with towel_token {towel_token.strip()} and cookie {cookie}"
             )
@@ -227,7 +227,7 @@ class PoolcideChecker(BaseChecker):
         self.team_db[self.flag] = {"user": user, "password": password}
         self.info(f"Random username: {user}, random password {password}")
         # TODO: Check returns!
-        with self.connect() as t:
+        with self.connect(retries=5) as t:
             # TODO Change order, newlines, ...
             t.write(f"GET /cgi-bin/poolcide?route=index HTTP/1.0\r\n\r\n")
             resp = ensure_unicode(t.read_all())
@@ -271,7 +271,7 @@ class PoolcideChecker(BaseChecker):
             )
 
         req = build_http(query_params={"route": "index"})
-        with self.connect() as sock:
+        with self.connect(retries=5) as sock:
             sock.write(req)
             indexresp = ensure_unicode(sock.read_all())
         # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" />
@@ -301,11 +301,11 @@ class PoolcideChecker(BaseChecker):
 
     def putnoise(self) -> None:
         self.logger.info("Starting putnoise")
-        self.connect()
+        self.connect(retries=5)
 
     def getnoise(self) -> None:
         self.logger.info("Starting getnoise")
-        self.connect()
+        self.connect(retries=5)
 
     def havoc(self) -> None:
         self.http_get()
