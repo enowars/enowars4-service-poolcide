@@ -1115,7 +1115,8 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
         /* +1 because we used an underscore as divider ([token]_[name]) */
         priority_towel_admin = priority_towels[k] + towel_len + 1;
         if (!priority_towel_admin) { priority_towel_admin = ""; }
-        LOG("Towel %s is a priority towel, owner: %s\n", towel_name);
+        LOG("Towel %s is a priority towel, owner: %s\n", towel_name,
+            priority_towel_admin);
         break;
 
       }
@@ -1161,8 +1162,9 @@ int user_create(char *name, char *pass) {
   char *user_loc = loc_user(name);
   FILE *file = file_create_atomic(user_loc);
 
-  /*Should be reasonably atomic, see
-   * https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c*/
+  /* Should be reasonably atomic, see
+   * https://stackoverflow.com/questions/230062/whats-the-best-way-to-check-if-a-file-exists-in-c
+   */
   if (!file) {
 
     /* failure */

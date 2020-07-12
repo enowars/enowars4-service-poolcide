@@ -20,7 +20,7 @@ with open("users.txt") as f:
     # users must not include '=', or '&' chars
     users = [x.strip() for x in f.readlines()]
 
-assert(len(users))
+assert len(users) > 100
 
 
 # noinspection PyDefaultArgument
@@ -63,7 +63,7 @@ def build_http(
         else:
             # divide with \n
             body = f"{body}\n{body_key}={body_val}"
-            
+
     # Make sure to always end params on \n - else the connection may block (params are read line by line)
     if body != "":
         body += "\n"
@@ -93,7 +93,7 @@ class PoolcideChecker(BaseChecker):
         return "".join(secrets.choice(string.ascii_letters) for x in range(len))
 
     def random_user(self) -> str:
-        return secrets.choice(users)
+        return secrets.choice(users) + hex(secrets.randbelow(256))[2:]
 
     def random_password(self) -> str:
         return self.random_string(16)
@@ -101,7 +101,9 @@ class PoolcideChecker(BaseChecker):
     def parse_cookie(self, response: Union[bytes, str]) -> str:
         response = ensure_unicode(response)
         try:
-            cookie = response.split("Set-Cookie:")[1].split("poolcode=")[1].split(";")[0]
+            cookie = (
+                response.split("Set-Cookie:")[1].split("poolcode=")[1].split(";")[0]
+            )
         except Exception as ex:
             self.warning(f"Cookie not found in resp: <<{response}>>: {ex}")
             raise BrokenServiceException("Could not read cookie")
@@ -135,10 +137,14 @@ class PoolcideChecker(BaseChecker):
             self.info(f"Got cookie {cookie}")
             return resp, cookie, csrf
 
-    def login(self, cookie: str, csrf: str, username: str, password: str) -> Tuple[str, str, str]:
+    def login(
+        self, cookie: str, csrf: str, username: str, password: str
+    ) -> Tuple[str, str, str]:
         return self.user_request("login", cookie, csrf, username, password)
 
-    def register(self, cookie: str, csrf: str, username: str, password: str) -> Tuple[str, str, str]:
+    def register(
+        self, cookie: str, csrf: str, username: str, password: str
+    ) -> Tuple[str, str, str]:
         return self.user_request("register", cookie, csrf, username, password)
 
     def reserve_as_admin(self, cookie: str) -> None:
@@ -147,7 +153,7 @@ class PoolcideChecker(BaseChecker):
             http = build_http(
                 method="GET",
                 query_params={"route": "dispense"},
-                cookies={"poolcode": cookie}
+                cookies={"poolcode": cookie},
             )
             self.debug(f"request for dispense: {http}")
             t.write(http)
@@ -161,7 +167,12 @@ class PoolcideChecker(BaseChecker):
             raise BrokenServiceException("No csrf token found in route=dispense")
 
         with self.connect() as t:
-            http = build_http(method="POST", query_params={"route": "reserve"}, params={"color": color_string, "csrf": csrf}, cookies={"poolcode": cookie})
+            http = build_http(
+                method="POST",
+                query_params={"route": "reserve"},
+                params={"color": color_string, "csrf": csrf},
+                cookies={"poolcode": cookie},
+            )
             t.write(http)
             stuff = t.read_until("<code>")
             # TODO expect more stuff
