@@ -130,9 +130,7 @@ typedef struct state {
 
 } state_t;
 
-/* Sane sourcecode STARTS with main. Why would anybody read from bottom to top?
- */
-
+/* Sane code STARTS with main. Why would anybody read from bottom to top? */
 int main() {
 
 /* run tests using
@@ -521,7 +519,6 @@ int parse_query(str) {
   /* parse */
   for (i = 0; i < content_len; i++) {
 
-    /* TODO: Use this in checker to fingerprint */
     if (!contents[i]) {
 
       ret[++val_count] = "";
@@ -1209,7 +1206,6 @@ int handle_register(state_t *state) {
   printf("success");
   return 0;
 invalid_username:
-  /* TODO Template? */
   printf("<h1>Sorry, username taken!</h1>");
   trigger_gc(1);
   exit(1);
