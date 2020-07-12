@@ -319,7 +319,11 @@ class PoolcideChecker(BaseChecker):
         self.connect()
 
     def havoc(self) -> None:
-        self.http_get()
+        branch = secrets.randbelow(1)
+        if branch == 1:
+            resp = self.http_get("cgi-bin/")
+            assert_in("FORBIDDEN", resp.text, "Diret access to cgi-bin not FORBIDDEN")
+            
 
     def exploit(self) -> None:
         pass
