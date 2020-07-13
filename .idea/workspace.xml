@@ -1,10 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="8134b0b8-9afb-422a-8256-17e380471bfc" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/checker/checker.py" beforeDir="false" afterPath="$PROJECT_DIR$/checker/checker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/service/src/poolcide.c" beforeDir="false" afterPath="$PROJECT_DIR$/service/src/poolcide.c" afterDir="false" />
-    </list>
+    <list default="true" id="8134b0b8-9afb-422a-8256-17e380471bfc" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -13,14 +10,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/checker/checker.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="166">
-              <caret line="346" selection-start-line="346" selection-end-line="346" />
-              <folding>
-                <element signature="e#23#37#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="90">
+              <caret line="6" column="18" selection-start-line="6" selection-start-column="18" selection-end-line="6" selection-end-column="18" />
             </state>
           </provider>
         </entry>
@@ -51,10 +45,10 @@
           <provider selected="true" editor-type-id="text-editor" />
         </entry>
       </file>
-      <file pinned="false" current-in-tab="true">
+      <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/service/templates/head.templ.html">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1805" />
+            <state relative-caret-position="-1539" />
           </provider>
         </entry>
       </file>
@@ -97,7 +91,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds">
+  <component name="ProjectFrameBounds" extendedState="1">
     <option name="x" value="20" />
     <option name="y" value="43" />
     <option name="width" value="1400" />
@@ -168,7 +162,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="20" y="43" width="1400" height="758" extended-state="0" />
+    <frame x="20" y="43" width="1400" height="758" extended-state="1" />
     <editor active="true" />
     <layout>
       <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.24945612" />
@@ -226,16 +220,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/checker/checker.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="166">
-          <caret line="346" selection-start-line="346" selection-end-line="346" />
-          <folding>
-            <element signature="e#23#37#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/service/poolcgid.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
@@ -256,7 +240,14 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/service/templates/head.templ.html">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1805" />
+        <state relative-caret-position="-1539" />
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/checker/checker.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="90">
+          <caret line="6" column="18" selection-start-line="6" selection-start-column="18" selection-end-line="6" selection-end-column="18" />
+        </state>
       </provider>
     </entry>
   </component>
