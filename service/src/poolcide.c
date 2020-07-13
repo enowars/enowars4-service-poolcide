@@ -275,7 +275,7 @@ int main() {
   
   https://www.openroad.org/cgi-bin/cgienvdemo
 
-  LOG("Reading CGI env");
+  LOG("Welcome to poolcide.");
 
   char *current_cookies = getenv("HTTP_COOKIE");
   char *request_method = getenv("REQUEST_METHOD");
@@ -355,7 +355,7 @@ int main() {
 
 }
 
-void assert(int condition) {
+int assert(condition) {
 
   if (!condition) {
 
@@ -481,24 +481,6 @@ int rand_str(len) {
 
 }
 
-/* reads a line */
-/* char *(FILE *) */
-int readline(f) {
-
-  char buf[1024];
-  if (!(!f ? gets(buf) : fgets(buf, sizeof(buf), f))) {
-
-    /* Looks like EOF to me */
-    return _NULL;
-
-  }
-
-  char *ret = malloc(strlen(buf) + 1);
-  strcpy(ret, buf);
-  return ret;
-
-}
-
 /* char **(char *) */
 int parse_query(str) {
 
@@ -584,7 +566,7 @@ int read_ini(char *filename) {
 
 }
 
-void write_ini(char *filename, char **ini) {
+void write_ini(filename, ini) {
 
   int   i;
   int   key_exists;
@@ -623,7 +605,7 @@ void write_ini(char *filename, char **ini) {
 
 }
 
-void debug_print_query(char **query) {
+void debug_print_query(query) {
 
   fprintf(stderr, "---> Query:\n");
   KV_FOREACH(query, { fprintf(stderr, "%s=%s\n", key, val); });
@@ -644,8 +626,7 @@ void debug_print_query(char **query) {
 LOC(cookie, COOKIE_DIR)
 LOC(user, USER_DIR)
 
-/* char ** */
-int file_set_val(char *filename, char *key_to_write, char *val_to_write) {
+int file_set_val(filename, key_to_write, val_to_write) {
 
   char * keycpy = strdup(key_to_write);
   char * valcpy = strdup(val_to_write);
@@ -715,7 +696,7 @@ int get_val(state_t *state, char *key_to_find) {
 }
 
 /* char * */
-int file_get_val(char *filename, char *key_to_find, char *default_val) {
+int file_get_val(filename, key_to_find, default_val) {
 
   char **ini = read_ini(filename);
   KV_FOREACH(ini, {
@@ -866,7 +847,7 @@ int init_state(char *request_method, char *current_cookie, char *query_string) {
 }
 
 /* char * */
-int parse_cookie(char *cookies) {
+int parse_cookie(cookies) {
 
   int i;
 
@@ -1038,7 +1019,25 @@ char **split(char *str, char splitter) {
 
 }
 
-char **own_towel_list(state_t *state) {
+/* reads a line */
+/* char *(FILE *) */
+int readline(f) {
+
+  char buf[1024];
+  if (!(!f ? gets(buf) : fgets(buf, sizeof(buf), f))) {
+
+    /* Looks like EOF to me */
+    return _NULL;
+
+  }
+
+  char *ret = malloc(strlen(buf) + 1);
+  strcpy(ret, buf);
+  return ret;
+
+}
+
+char **own_towel_list(state) {
 
   int i;
 
@@ -1048,7 +1047,7 @@ char **own_towel_list(state_t *state) {
 
 }
 
-int ls(state_t *state, char *dir) {
+int ls(state, dir) {
 
   int i;
 
@@ -1066,7 +1065,7 @@ int maybe_prune(state_t *state, char *dir) {
 
 }
 
-int prune(char *dir) {
+int prune(dir) {
 
   LOG("Pruning all files in %s older than 15 minutes\n", dir);
   /* mmin -> motification time, amin -> access time */
@@ -1075,7 +1074,7 @@ int prune(char *dir) {
 
 }
 
-int render_own_towels(state_t *state) {
+int render_own_towels(state) {
 
   char **towel_list = own_towel_list(state);
   if (!towel_list || !towel_list[0]) { return ""; }
@@ -1083,7 +1082,7 @@ int render_own_towels(state_t *state) {
 
 }
 
-int render_all_towels(state_t *state) {
+int render_all_towels(state) {
 
   char **towel_list = ls(state, TOWEL_DIR);
   if (!towel_list || !towel_list[0]) { return ""; }
@@ -1157,14 +1156,14 @@ void cookie_set_val(state_t *state, char *key, char *val) {
 
 }
 
-void file_delete(char *filename) {
+void file_delete(filename) {
 
   remove(filename);
 
 }
 
 /* returns 0 on error / if :user exists */
-int user_create(char *name, char *pass) {
+int user_create(name, pass) {
 
   // clang-format off
   char *user_loc = loc_user(name);
@@ -1317,18 +1316,16 @@ int run(cmd, param) {
   } else {
 
     // clang-format off
-    int ret_len = strlen(ret);
+    int pos = strlen(ret);
 
-    if (ret_len) {
+    if (pos) {
 
-      i = ret_len - 1;
+      /* strip newline endings, pos downto 0 */
 
-      /* strip newline endings, i downto 0 */
+      while (pos --> 0) {
 
-      while (i --> 0) {
-
-        if (ret[i] != '\n') { break; }
-        ret[i] = '\0';
+        if (ret[pos] != '\n') { break; }
+        ret[pos] = '\0';
 
       }
 
@@ -1354,7 +1351,6 @@ int hash(to_hash) {
 
 }
 
-/* char *(char *) */
 int enc_towel_id(towel_id) {
 
   return run(
@@ -1462,7 +1458,7 @@ int handle_dispense(state_t *state) {
 
 }
 
-int add_priority_towel_for(char *username, char *towel_token) {
+int add_priority_towel_for(username, towel_token) {
 
   char priority_towel_space[1036];
   sprintf(priority_towel_space, PRIORITY_TOWEL_DIR "%s_%s",
@@ -1510,7 +1506,7 @@ int handle_towel(state_t *state) {
 
 }
 
-int get_towel_color(char *towel) {
+int get_towel_color(towel) {
 
   char  towelpath[1036];
   char *color = calloc(1, 4096);
@@ -1522,4 +1518,3 @@ int get_towel_color(char *towel) {
   return color;
 
 }
-

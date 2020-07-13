@@ -344,7 +344,7 @@ class PoolcideChecker(BaseChecker):
             assert_in("FORBIDDEN", resp.text, "Diret access to cgi-bin not FORBIDDEN")
 
     def exploit(self) -> None:
-        pass
+
 
 
 app = PoolcideChecker.service
