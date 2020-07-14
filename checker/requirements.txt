@@ -1,2 +1,2 @@
-enochecker>=0.1
+enochecker>=0.2
 gunicorn[eventlet]

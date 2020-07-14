@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-import secrets
+import html
 import random
+import secrets
 import string
 import subprocess
-import html
 import urllib.parse
-from enochecker import BaseChecker, run, BrokenServiceException
+
+from enochecker import BaseChecker, run
 from enochecker.utils import *
 
 # created: 2020-06-25T23:34:03+02:00
@@ -344,7 +345,26 @@ class PoolcideChecker(BaseChecker):
             assert_in("FORBIDDEN", resp.text, "Diret access to cgi-bin not FORBIDDEN")
 
     def exploit(self) -> None:
+        # Step 1: get all available admin ids
+        user = self.random_user()
+        password = self.random_password()
+        self.info(f"Random username: {user}, random password {password}")
+        resp, cookie, csrf = self.request_index()
+        self.info("trying to log in")
+        resp, cookie, csrf = self.register(cookie, csrf, user, password)
+        self.info(f"Logged in as {user}")
 
+        with self.connect() as t:
+            http = build_http(
+                method="GET",
+                query_params={"route": "dispense"},
+                cookies={"poolcode": cookie},
+            )
+            self.debug(f"request for dispense: {http}")
+            t.write(http)
+            resp = ensure_unicode(t.read_all())
+            self.debug(f"response for dispense was {resp}")
+            self.error("finish exploit...")
 
 
 app = PoolcideChecker.service
