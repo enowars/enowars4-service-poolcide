@@ -267,7 +267,7 @@ class PoolcideChecker(BaseChecker):
         resp, cookie, csrf = self.login(user, password)
         resp = self.get_towel(cookie, towel_token)
         try:
-            escaped_flag = resp.split('<code id="color">')[1].split("</code>")[0]
+            escaped_flag = resp.split('id="color">')[1].split("</code>")[0]
             self.info(f"Escaped flag is {escaped_flag}")
             # Flags get url escaped on request by the browser - and html escaped by us.
             flag = urllib.parse.unquote(html.unescape(escaped_flag))
@@ -326,7 +326,7 @@ class PoolcideChecker(BaseChecker):
             resp, cookie, csrf = self.login(user, password)
         resp = self.get_towel(cookie, towel_token)
         try:
-            escaped_flag = resp.split('<code id="color">')[1].split("</code>")[0]
+            escaped_flag = resp.split('id="color">')[1].split("</code>")[0]
             self.info(f"Escaped flag is {escaped_flag}")
             # Flags get url escaped on request by the browser - and html escaped by us.
             flag = urllib.parse.unquote(html.unescape(escaped_flag))
