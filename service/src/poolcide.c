@@ -275,7 +275,7 @@ int main() {
   
   https://www.openroad.org/cgi-bin/cgienvdemo
 
-  LOG("Welcome to poolcide.");
+  LOG("Welcome to poolcide.\n");
 
   char *current_cookies = getenv("HTTP_COOKIE");
   char *request_method = getenv("REQUEST_METHOD");
@@ -628,12 +628,15 @@ LOC(user, USER_DIR)
 
 int file_set_val(filename, key_to_write, val_to_write) {
 
+  LOG("Setting %s to %s\n", key_to_write, val_to_write);
   char * keycpy = strdup(key_to_write);
   char * valcpy = strdup(val_to_write);
+
   char **ini = read_ini(filename);
-  LOG("Setting %s to %s\n", key_to_write, val_to_write);
+
   int wrote_val = 0;
   int last_idx = -1;
+
   KV_FOREACH(ini, {
 
     if (!strcmp(key, keycpy)) {
@@ -1245,8 +1248,7 @@ int handle_register(state_t *state) {
   if (!strlen(username)) { goto invalid_username; }
   cookie_set_val(state, "logged_in", "0");
   cookie_set_val(state, "username", username);
-  char *pass = get_val(state, "password");
-  if (!user_create(username, pass)) { goto invalid_username; }
+  if (!user_create(username, get_val(state, "password"))) { goto invalid_username; }
   state->username = username;
   state->user_loc = loc_user(state->username);
   cookie_set_val(state, "logged_in", "1");
