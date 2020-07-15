@@ -259,7 +259,7 @@ class PoolcideChecker(BaseChecker):
             password = self.team_db[self.flag]["password"]
             towel_token = self.team_db[self.flag + "_towel"]
         except Exception as ex:
-            self.error("Could not get user, password or towlid from db: {ex}")
+            self.error(f"Could not get user, password or towlid from db: {ex}")
             raise BrokenServiceException(
                 "No stored credentials from putflag in getflag"
             )
@@ -312,7 +312,7 @@ class PoolcideChecker(BaseChecker):
             cookie = self.team_db[self.flag]["cookie"]
             towel_token = self.team_db[self.flag + "_towel"]
         except Exception as ex:
-            self.error("Could not get user, password or towlid from db: {ex}")
+            self.error(f"Could not get user, password or towlid from db: {ex}")
             raise BrokenServiceException(
                 "No stored credentials from putflag in getflag"
             )
