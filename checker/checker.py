@@ -5,7 +5,6 @@ import secrets
 import string
 import subprocess
 import urllib.parse
-import socket
 
 from enochecker import BaseChecker, run
 from enochecker.utils import *
