@@ -629,8 +629,8 @@ LOC(user, USER_DIR)
 int file_set_val(filename, key_to_write, val_to_write) {
 
   LOG("Setting %s to %s\n", key_to_write, val_to_write);
-  char * keycpy = strdup(key_to_write);
-  char * valcpy = strdup(val_to_write);
+  char *keycpy = strdup(key_to_write);
+  char *valcpy = strdup(val_to_write);
 
   char **ini = read_ini(filename);
 
@@ -1065,7 +1065,7 @@ char **split(char *str, char splitter) {
 /* char *(FILE *) */
 int readline(f) {
 
-  char buf[1024];
+  char buf[16384];
   if (!(!f ? gets(buf) : fgets(buf, sizeof(buf), f))) {
 
     /* Looks like EOF to me */
@@ -1096,7 +1096,7 @@ int ls(state, dir) {
   /* prune all 256 requests */
   maybe_prune(state, dir);
   /* using forward slash as divider = never a valid unix filename */
-  char *list_str = run("ls '%s' | tr '\\n' '/'", dir);
+  char *list_str = run("ls -t '%s' | tr '\\n' '/' | head -c 10000", dir);
   return split(list_str, '/');
 
 }
@@ -1111,8 +1111,7 @@ int prune(dir) {
 
   LOG("Pruning all files in %s older than 15 minutes\n", dir);
   /* mmin -> motification time, amin -> access time */
-  LOG(run("find '%s' -amin +15 -type f -not -name .gitkeep -exec rm -fv {} \\;",
-          dir));
+  LOG(run("find '%s' -mmin +20 -type f -delete", dir));
 
 }
 
@@ -1248,7 +1247,12 @@ int handle_register(state_t *state) {
   if (!strlen(username)) { goto invalid_username; }
   cookie_set_val(state, "logged_in", "0");
   cookie_set_val(state, "username", username);
-  if (!user_create(username, get_val(state, "password"))) { goto invalid_username; }
+  if (!user_create(username, get_val(state, "password"))) {
+
+    goto invalid_username;
+
+  }
+
   state->username = username;
   state->user_loc = loc_user(state->username);
   cookie_set_val(state, "logged_in", "1");
