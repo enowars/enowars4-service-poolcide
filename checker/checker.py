@@ -129,7 +129,7 @@ class PoolcideChecker(BaseChecker):
             self.debug(f"Sending request: {http}")
             t.write(http)
             resp = ensure_unicode(t.read_all())
-            self.debug(f"Got response: {resp}")
+            self.debug(f"Got response: {resp[40:]}...")
             new_cookie = self.parse_cookie(resp)
 
             assert_equals(cookie, new_cookie)
@@ -165,7 +165,7 @@ class PoolcideChecker(BaseChecker):
             self.debug(f"request for dispense: {http}")
             t.write(http)
             resp = ensure_unicode(t.read_all())
-            self.debug(f"response for dispense was {resp}")
+            self.debug(f"response for dispense was {resp[40:]}...{resp[-40:]}")
 
         try:
             csrf = resp.split('name="csrf" value="')[1].split('"')[0]
@@ -240,7 +240,7 @@ class PoolcideChecker(BaseChecker):
                 f"GET /cgi-bin/poolcide/poolcide?route=towel&token={towel_token.strip()}\r\nCookie: {COOKIE}={cookie}\r\n\r\n"
             )
             resp = t.read_all()
-            self.debug(f"Got return {resp}")
+            self.debug(f"Got return {resp[40]}...")
             return resp.decode()
 
     def putflag(self) -> None:
@@ -265,6 +265,11 @@ class PoolcideChecker(BaseChecker):
             )
 
         resp, cookie, csrf = self.login(user, password)
+        admin_list = self.get_admin_list({COOKIE: cookie})
+        if not len(admin_list):
+            raise BrokenServiceException("No privileged towels found.")
+        if towel_token not in [y for (x, y) in admin_list]:
+            raise BrokenServiceException("Flag towel not listed in dispense route")
         resp = self.get_towel(cookie, towel_token)
         try:
             escaped_flag = resp.split('id="color">')[1].split("</code>")[0]
@@ -318,12 +323,17 @@ class PoolcideChecker(BaseChecker):
             )
 
         if self.flag_idx % 2:
-            cookies = {COOKIE: cookie}
+            cookies = {COOKIE: cookie, self.random_string(4): self.random_string(4)}
             resp, cookie, csrf = self.request_index(cookies)
             assert_equals(cookie, cookies[COOKIE])
         else:
             # do a fresh login.
             resp, cookie, csrf = self.login(user, password)
+
+        admin_list = self.get_admin_list({COOKIE: cookie})
+        if not len(admin_list):
+            raise BrokenServiceException("No privileged towels found.")
+
         resp = self.get_towel(cookie, towel_token)
         try:
             escaped_flag = resp.split('id="color">')[1].split("</code>")[0]
@@ -344,34 +354,29 @@ class PoolcideChecker(BaseChecker):
             assert_in("FORBIDDEN", resp.text, "Diret access to cgi-bin not FORBIDDEN")
 
     def get_admin_list(
-        self, user: Optional[str] = None, password: Optional[str] = None
-    ):
+        self, cookies: Dict[str, str]
+    ) -> List[Tuple[str, str]]:
         """
         Parses the towels fom dispense and gets the admin towels
-        :param user:
-        :param password:
-        :return: (name, towel_id)
+        :param cookies: The cookies. Must at least include a valid poolcode for this method to work.
+        :return: List[(name, towel_id)]
         """
-        if not user:
-            user = self.random_user()
-        if not password:
-            user = self.random_password()
-        resp, cookie, csrf = self.register(user, password)
-        self.info(f"Logged in as {user}")
+        if COOKIE not in cookies:
+            raise AttributeError(f"Cookie {COOKIE} needs to be set to get admin list")
 
         with self.connect() as t:
             http = build_http(
                 method="GET",
                 query_params={"route": "dispense"},
-                cookies={COOKIE: cookie},
+                cookies=cookies,
             )
             self.debug(f"request for dispense: {http}")
             t.write(http)
             resp = ensure_unicode(t.read_all())
 
-        self.debug(f"response for dispense was {resp}")
+        self.debug(f"response for dispense was {resp[40:]}...{resp[-40:]}")
 
-        print(resp)
+        # print(resp)
 
         try:
             adminslist = [
@@ -384,7 +389,8 @@ class PoolcideChecker(BaseChecker):
 
     def exploit(self) -> None:
         self.info("Step 1: get all available admin ids")
-        admin_list = self.get_admin_list()
+        resp, cookie, csrf = self.register(self.random_user(), self.random_password())
+        admin_list = self.get_admin_list({COOKIE: cookie})
         self.info(f"admins: {admin_list}")
 
         found_flags = []
