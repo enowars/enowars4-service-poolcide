@@ -1141,7 +1141,7 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
 
   }
 
-  char *ret = calloc(1, 16384);
+  char *ret = calloc(1, 102400);
   int   retpos = 0;
 
 #define CURRENT_TOWEL (((char **)towel_list)[i])
@@ -1162,8 +1162,8 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
         /* +1 because we used an underscore as divider ([token]_[name]) */
         priority_towel_admin = priority_towels[k] + towel_len + 1;
         if (!priority_towel_admin) { priority_towel_admin = ""; }
-        LOG("Towel %s is a priority towel, owner: %s\n", towel_name,
-            priority_towel_admin);
+        /* LOG("Towel %s is a priority towel, owner: %s\n", towel_name,
+            priority_towel_admin); */
         break;
 
       }
