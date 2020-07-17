@@ -128,7 +128,7 @@ class PoolcideChecker(BaseChecker):
             )
             self.debug(f"Sending request: {http}")
             t.write(http)
-            resp = ensure_unicode(t.read_all())
+            resp = ensure_unicode(t.read_until("</body>"))
             self.debug(f"Got response: {resp[40:]}...")
             new_cookie = self.parse_cookie(resp)
 
@@ -164,7 +164,7 @@ class PoolcideChecker(BaseChecker):
             )
             self.debug(f"request for dispense: ...{http[-40:]}")
             t.write(http)
-            resp = ensure_unicode(t.read_all())
+            resp = ensure_unicode(t.read_until("</body>"))
             self.debug(f"response for dispense was {resp[40:]}...{resp[-40:]}")
 
         try:
@@ -225,7 +225,7 @@ class PoolcideChecker(BaseChecker):
             t.write(b"towel_admin_id=")
             t.write(admin_id)
             t.write("\n")
-            all = t.read_all()
+            all = t.read_until("</body>")
             if not b"Admin at the pool" in all:
                 self.warning(f"Didn't find admin info in {all}")
                 raise BrokenServiceException(
@@ -240,7 +240,7 @@ class PoolcideChecker(BaseChecker):
             t.write(
                 f"GET /cgi-bin/poolcide/poolcide?route=towel&token={towel_token.strip()}\r\nCookie: {COOKIE}={cookie}\r\n\r\n"
             )
-            resp = t.read_all()
+            resp = t.read_until("</body>")
             self.debug(f"Got return {resp[40]}...")
             return resp.decode()
 
@@ -289,7 +289,7 @@ class PoolcideChecker(BaseChecker):
         req = build_http(query_params={"route": "index"}, cookies=cookies)
         with self.connect() as sock:
             sock.write(req)
-            indexresp = ensure_unicode(sock.read_all())
+            indexresp = ensure_unicode(sock.read_until("</body>"))
         # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" />
         try:
             csrf = indexresp.split('name="csrf" value="')[1].split('" />')[0]
@@ -313,6 +313,7 @@ class PoolcideChecker(BaseChecker):
 
     def getnoise(self) -> None:
         try:
+            flag_obj = self.team_db
             user = self.team_db[self.flag]["user"]
             password = self.team_db[self.flag]["password"]
             cookie = self.team_db[self.flag]["cookie"]
@@ -373,7 +374,7 @@ class PoolcideChecker(BaseChecker):
             )
             self.debug(f"request for dispense: {http}")
             t.write(http)
-            resp = ensure_unicode(t.read_all())
+            resp = ensure_unicode(t.read_until("</body>"))
 
         self.debug(f"response for dispense was {resp[40:]}...{resp[-40:]}")
 
@@ -451,7 +452,7 @@ class PoolcideChecker(BaseChecker):
                 self.debug("step 5: finish register to set logged_in to 1")
                 sock_reg.write(f"password={self.random_password()}\n")
                 self.debug("Register complete. Should be logged in now.")
-                self.debug(f"Register response: {sock_reg.read_all()}")
+                self.debug(f"Register response: {sock_reg.read_until('</body>')}")
                 sock_reg.close()
                 self.info(
                     "Now we should be logged in with the admin username. Get the towel!"
@@ -465,7 +466,7 @@ class PoolcideChecker(BaseChecker):
                 )
                 sock_flag = self.connect()
                 sock_flag.write(get_flag)
-                flag_response = ensure_unicode(sock_flag.read_all())
+                flag_response = ensure_unicode(sock_flag.read_until("</body>"))
                 self.debug(f"Flag response: {flag_response}")
 
                 flag_enc = flag_response.split('id="color">')[1].split("</code>")[0]
