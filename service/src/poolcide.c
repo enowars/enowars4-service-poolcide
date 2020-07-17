@@ -9,6 +9,7 @@
 #define TOWEL_ID_LEN (14)
 #define TOWEL_TOKEN_LEN (10)
 #define COOKIE_LEN (20)
+#define PRUNE_TIME (20)
 
 #define STORAGE_DIR "../../data/"
 #define COOKIE_DIR STORAGE_DIR "cookies/"
@@ -73,22 +74,27 @@ extern FILE *stderr;
                                            \
   } while (0);
 
-#define FILE_KV_FOREACH(filename, block)            \
-  do {                                              \
-                                                    \
-    FILE *file = fopen(filename, "r");              \
-    if (!file) { PFATAL("Couldn't open kv file"); } \
-    do {                                            \
-                                                    \
-      char **query = parse_query(FILE_NEXT());      \
-      if (!query) { break; }                        \
-      KV_FOREACH(query, {block});                   \
-                                                    \
-    } while (1);                                    \
-                                                    \
-                                                    \
-    fclose(file);                                   \
-                                                    \
+#define FILE_KV_FOREACH(filename, block)                \
+  do {                                                  \
+                                                        \
+    FILE *file = fopen(filename, "r");                  \
+    if (!file) {                                        \
+                                                        \
+      LOG("Error accessing KV file %s...\n", filename); \
+      PFATAL("Couldn't open kv file");                  \
+                                                        \
+    }                                                   \
+    do {                                                \
+                                                        \
+      char **query = parse_query(FILE_NEXT());          \
+      if (!query) { break; }                            \
+      KV_FOREACH(query, {block});                       \
+                                                        \
+    } while (1);                                        \
+                                                        \
+                                                        \
+    fclose(file);                                       \
+                                                        \
   } while (0);
 
 #define ROUTE(method_name, route_name)        \
@@ -1098,22 +1104,27 @@ int ls(state, dir) {
   /* prune all 256 requests */
   maybe_prune(state, dir);
   /* using forward slash as divider = never a valid unix filename */
-  char *list_str = run("ls -t '%s' | tr '\\n' '/' | head -c 10000", dir);
+  char *list_str = run("ls '%s' | tr '\\n' '/' | head -c 10000", dir);
   return split(list_str, '/');
 
 }
 
 int maybe_prune(state_t *state, char *dir) {
 
-  if (state->nonce[0] == 'A') { prune(dir); }
+  if (state->nonce[0] == 'A') {
+
+    LOG("Pruning %s this time (every (26+26+10)th time).\n", dir);
+    prune(dir);
+
+  }
 
 }
 
 int prune(dir) {
 
-  LOG("Pruning all files in %s older than 15 minutes\n", dir);
+  LOG("Pruning all files in %s older than %d minutes\n", dir, PRUNE_TIME);
   /* mmin -> motification time, amin -> access time */
-  LOG(run("find '%s' -mmin +20 -type f -delete", dir));
+  LOG(run("find '%s' -mmin +%d -type f -delete", dir, PRUNE_TIME));
 
 }
 
