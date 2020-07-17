@@ -6,7 +6,7 @@
 #define NL "\r\n"
 #define QUERY_COUNT (32)
 #define NONCE_LEN (20)
-#define TOWEL_ID_LEN (16)
+#define ADMIN_CHALLENGE_LEN (16)
 #define TOWEL_TOKEN_LEN (8)
 #define COOKIE_LEN (10)
 #define PRUNE_TIME "15"
@@ -276,8 +276,8 @@ int main() {
 
 #elif defined(TEST_TOWEL_ENC)
 
-  printf(enc_towel_id("test"));
-  assert(strlen(enc_towel_id("test")));
+  printf(enc_admin_challenge("test"));
+  assert(strlen(enc_admin_challenge("test")));
   return 0;
 
 #else                                                            /* No TEST */
@@ -1275,7 +1275,6 @@ int handle_register(state_t *state) {
 
   char *username = dup_alphanumeric(get_val(state, "username"));
   if (!strlen(username)) { goto invalid_username; }
-  cookie_set_val(state, "logged_in", "0");
   cookie_set_val(state, "username", username);
   if (!user_create(username, get_val(state, "password"))) {
 
@@ -1422,14 +1421,14 @@ int hash(to_hash) {
 
 }
 
-int enc_towel_id(towel_id) {
+int enc_admin_challenge(admin_challenge) {
 
   return run(
       "echo '%s'"
       "| ./age -r "
       "age1mngxnym3sz9t8jtyfsl43szh4pg070g857khq6zpw3h9l37v3gdqs2nrlx -a"
       "| tr -d '\\n'",
-      towel_id);
+      admin_challenge);
 
 }
 
@@ -1447,9 +1446,9 @@ int handle_reserve(state_t *state) {
 
   char *csrf = "";
 
-  char *towel_id = rand_str(TOWEL_ID_LEN);
+  char *admin_challenge = rand_str(ADMIN_CHALLENGE_LEN);
   char *towel_token = rand_str(TOWEL_TOKEN_LEN);
-  LOG("towel_id was: %s\n", towel_id);
+  LOG("admin_challenge was: %s\n", admin_challenge);
   LOG("towel_token was: %s\n", towel_token);
   char *color = get_val(state, "color");
 
@@ -1472,15 +1471,15 @@ int handle_reserve(state_t *state) {
   fclose(file);
 
   char *user_towels_old = get_user_val(state, "towels", "");
-  char *user_towels_new = calloc(1, strlen(user_towels_old) + TOWEL_ID_LEN + 2);
+  char *user_towels_new = calloc(1, strlen(user_towels_old) + ADMIN_CHALLENGE_LEN + 2);
   /* The towels list gets separated with slashes for serialization. */
   sprintf(user_towels_new, "%s/%s", user_towels_old, towel_token);
   set_user_val(state, "towels", user_towels_new);
 
-  char *towel_id_enc = "";
+  char *admin_challenge_enc = "";
   if (IS_POST || state->nonce[0] < '9') {
 
-    towel_id_enc = enc_towel_id(towel_id);
+    admin_challenge_enc = enc_admin_challenge(admin_challenge);
 
   }
 
@@ -1507,7 +1506,7 @@ int handle_reserve(state_t *state) {
 
     }
 
-    if (!strcmp(towel_id, towel_admin_id)) {
+    if (!strcmp(admin_challenge, towel_admin_id)) {
 
       LOG("An admin entered the scene!\n");
       add_priority_towel_for(state->username, towel_token);
@@ -1521,13 +1520,13 @@ int handle_reserve(state_t *state) {
 
 int handle_dispense(state) {
 
-  char *towel_id = rand_str(TOWEL_ID_LEN);
+  char *admin_challenge = rand_str(ADMIN_CHALLENGE_LEN);
   char *towel_token = "";
-  LOG("towel_id was: %s\n", towel_id);
+  LOG("admin_challenge was: %s\n", admin_challenge);
   LOG("towel_token was: %s\n", towel_token);
   char *color = "";
 
-  char *towel_id_enc = "";
+  char *admin_challenge_enc = "";
   char *own_towels = render_own_towels(state);
   char *towels = render_all_towels(state);
   if (!towels) { towels = ""; }

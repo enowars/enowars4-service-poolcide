@@ -191,18 +191,18 @@ class PoolcideChecker(BaseChecker):
             content = t.read_until("</body>")
             content = content.decode()[:-1]
 
-            if not as_admin:
-                return
-
             try:
                 self.debug(f"reserve page content is ...{content[-40:]}")
-                towel_id = content.split("ID ")[1].split(" and")[0]
+                towel_id = content.split("<p>Your towel with the ID ")[1].split(" and")[0]
                 self.info(f"Got towel id {towel_id}")
                 # Storing towel_token
                 self.team_db[self.flag + "_towel"] = towel_id
             except Exception as ex:
                 self.warning("Towel ID Failed with request {content}: {ex}")
                 raise BrokenServiceException("Could not get Towel ID")
+
+            if not as_admin:
+                return
 
             age_begin = "-----BEGIN AGE ENCRYPTED FILE-----"
             age_end = "-----END AGE ENCRYPTED FILE-----"
@@ -262,7 +262,7 @@ class PoolcideChecker(BaseChecker):
             password = self.team_db[self.flag]["password"]
             towel_token = self.team_db[self.flag + "_towel"]
         except Exception as ex:
-            self.error(f"Could not get user, password or towlid from db: {ex}")
+            self.error(f"Could not get flag user, password or towlid from db: {ex}")
             raise BrokenServiceException(
                 "No stored credentials from putflag in getflag"
             )
@@ -315,15 +315,15 @@ class PoolcideChecker(BaseChecker):
 
     def getnoise(self) -> None:
         try:
-            flag_obj = self.team_db
-            user = self.team_db[self.flag]["user"]
-            password = self.team_db[self.flag]["password"]
-            cookie = self.team_db[self.flag]["cookie"]
+            flag_obj = self.team_db[self.flag]
+            user = flag_obj["user"]
+            password = flag_obj["password"]
+            cookie = flag_obj["cookie"]
             towel_token = self.team_db[self.flag + "_towel"]
         except Exception as ex:
-            self.error(f"Could not get user, password or towlid from db: {ex}")
+            self.error(f"Could not get noise user, password or towel_token from db: {ex}")
             raise BrokenServiceException(
-                "No stored credentials from putflag in getflag"
+                "No stored credentials from putnoise in getnoise"
             )
 
         if self.flag_idx % 2:

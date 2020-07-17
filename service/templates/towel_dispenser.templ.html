@@ -41,13 +41,13 @@ TEMPLATE(
     </div>
 
     <div id=towelid>
-    <p>Also, the towel_id for our towel admin team is </p>
+    <p>Also, the towel questionnaire for our lifeguard team is </p>
     <div>
-        <code>{{towel_id_enc%s}}</code>
+        <code>{{admin_challenge_enc%s}}</code>
     </div>
     <p> today.</p>
     <code id="chosencolor">{{color%s}}</code>
-    <p>BTW.: please make sure you dont't run poolcide too far away from a pool (for example behind a http proxy)</p>
+    <p>BTW.: please make sure poolcide is right to the pool pool (not, for example, behind a http proxy or beach hut)</p>
     </div>
     <a href=/>HOME</a>
 
@@ -59,7 +59,7 @@ TEMPLATE(
     }
     chosencolor.innerHTML = ""
 
-    if ({{(!towel_id_enc[0])%d}}) {
+    if ({{(!admin_challenge_enc[0])%d}}) {
         towelid.innerHTML = ""
     }
     if ({{(!own_towels[0])%d}}) {
