@@ -355,6 +355,7 @@ int main() {
 
   if IS_GET { printf(NL "</html>" NL); }
 
+  fflush(stdin);
   LOG("Finished %s %s - %s %s \n", state->method, state->route, query_string,
       script_name);
 

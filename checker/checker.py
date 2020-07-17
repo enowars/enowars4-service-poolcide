@@ -192,13 +192,13 @@ class PoolcideChecker(BaseChecker):
             content = content.decode()[:-1]
 
             try:
-                self.debug(f"reserve page content is {content}")
+                self.debug(f"reserve page content is ...{content[-40:]}")
                 towel_id = content.split("ID ")[1].split(" and")[0]
                 self.info(f"Got towel id {towel_id}")
                 # Storing towel_token
                 self.team_db[self.flag + "_towel"] = towel_id
             except Exception as ex:
-                self.warning(ex)
+                self.warning("Towel ID Failed with request {content}: {ex}")
                 raise BrokenServiceException("Could not get Towel ID")
 
             if not as_admin:
