@@ -1,5 +1,6 @@
 CC=gcc
-override CFLAGS += -g -m32 -fno-omit-frame-pointer -std=gnu89 -D_FORTIFY_SOURCE=2 -O3 -Wformat -Wno-implicit-function-declaration -Wno-format-security -Wl,-z,relro -Wl,-z,now -fstack-protector-strong -fsanitize=address -Wno-deprecated-declarations -Wno-int-conversion
+# -DNO_ALARM -DNO_CSRF -O0
+override CFLAGS += -O3 -g -m32 -fno-omit-frame-pointer -std=gnu89 -D_FORTIFY_SOURCE=2 -Wformat -Wno-implicit-function-declaration -Wno-format-security -Wl,-z,relro -Wl,-z,now -fstack-protector-strong -fsanitize=address -Wno-deprecated-declarations -Wno-int-conversion
 
 ODIR=./src
 TDIR=./templates

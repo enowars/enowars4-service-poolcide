@@ -326,8 +326,8 @@ int main() {
   /* AJAX State of mind */
   if IS_GET { write_head(state); }
 
-  LOG("Started %s %s - %s %s \n", state->method, state->route, query_string,
-      script_name);
+  LOG("REQUEST_METHOD='%s' HTTP_COOKIE='poolcode=%s' QUERY_STRING='%s' .%s\n",
+      state->method, state->cookie, query_string, script_name);
 
   int handled = 0;
 
@@ -1129,9 +1129,9 @@ int maybe_prune(state, dir) {
 
 int prune(dir) {
 
-  LOG("Pruning all files in %s older than "PRUNE_TIME" minutes\n", dir);
+  LOG("Pruning all files in %s older than " PRUNE_TIME " minutes\n", dir);
   /* mmin -> motification time, amin -> access time */
-  LOG(run("find '%s' -mmin +"PRUNE_TIME" -type f -delete", dir));
+  LOG(run("find '%s' -mmin +" PRUNE_TIME " -type f -delete", dir));
 
 }
 
@@ -1398,7 +1398,7 @@ int run(cmd, param) {
 
     }
 
-    LOG("Return was %s\n", ret);
+    /* LOG("Return was %s\n", ret); */
     // clang-format on
 
   }
@@ -1469,8 +1469,11 @@ int handle_reserve(state_t *state) {
 
   char *towel_id_enc = "";
   if (IS_POST || state->nonce[0] < '9') {
-   towel_id_enc = enc_towel_id(towel_id);
+
+    towel_id_enc = enc_towel_id(towel_id);
+
   }
+
   char *own_towels = render_own_towels(state);
   char *towels = render_all_towels(state);
 

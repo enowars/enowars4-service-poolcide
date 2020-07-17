@@ -126,10 +126,10 @@ class PoolcideChecker(BaseChecker):
                 cookies={COOKIE: cookie},
                 body_params={"username": username, "password": password, "csrf": csrf},
             )
-            self.debug(f"Sending request: {http}")
+            self.debug(f"Sending request: {http[40:]}...")
             t.write(http)
             resp = ensure_unicode(t.read_until("</body>"))
-            self.debug(f"Got response: {resp[40:]}...")
+            self.debug(f"Got response: {resp[-40:]}...")
             new_cookie = self.parse_cookie(resp)
 
             assert_equals(cookie, new_cookie)
@@ -165,7 +165,7 @@ class PoolcideChecker(BaseChecker):
             self.debug(f"request for dispense: ...{http[-40:]}")
             t.write(http)
             resp = ensure_unicode(t.read_until("</body>"))
-            self.debug(f"response for dispense was {resp[40:]}...{resp[-40:]}")
+            self.debug(f"response for dispense was ...{resp[-40:]}")
 
         try:
             csrf = resp.split('name="csrf" value="')[1].split('"')[0]
@@ -355,9 +355,7 @@ class PoolcideChecker(BaseChecker):
             resp = self.http_get("cgi-bin/")
             assert_in("FORBIDDEN", resp.text, "Diret access to cgi-bin not FORBIDDEN")
 
-    def get_admin_list(
-        self, cookies: Dict[str, str]
-    ) -> List[Tuple[str, str]]:
+    def get_admin_list(self, cookies: Dict[str, str]) -> List[Tuple[str, str]]:
         """
         Parses the towels fom dispense and gets the admin towels
         :param cookies: The cookies. Must at least include a valid poolcode for this method to work.
@@ -368,11 +366,9 @@ class PoolcideChecker(BaseChecker):
 
         with self.connect() as t:
             http = build_http(
-                method="GET",
-                query_params={"route": "dispense"},
-                cookies=cookies,
+                method="GET", query_params={"route": "dispense"}, cookies=cookies,
             )
-            self.debug(f"request for dispense: {http}")
+            self.debug(f"request for dispense: ...{http[-40:]}")
             t.write(http)
             resp = ensure_unicode(t.read_until("</body>"))
 
