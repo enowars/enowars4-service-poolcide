@@ -1086,7 +1086,7 @@ int readline(f) {
 
   }
 
-  char *ret = malloc(strlen(buf) + 1);
+  char *ret = malloc(strlen(buf) + 2);
   strcpy(ret, buf);
   return ret;
 
@@ -1161,7 +1161,7 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
 
   }
 
-  char *ret = calloc(1, 102400);
+  char *ret = calloc(1, 1024000);
   int   retpos = 0;
 
 #define CURRENT_TOWEL (((char **)towel_list)[i])
@@ -1196,6 +1196,8 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
     retpos += sprintf(ret + retpos,
 #include <towel.templ>
     );
+
+    if (retpos > 1000000) break;
 
   }
 
@@ -1408,7 +1410,7 @@ int run(cmd, param) {
 /* char *(char *) */
 int hash(to_hash) {
 
-  return run("sha256sum '%s\'", escape_4_hash(to_hash));
+  return run("echo '%s' | sha256sum", escape_4_hash(to_hash));
 
 }
 
