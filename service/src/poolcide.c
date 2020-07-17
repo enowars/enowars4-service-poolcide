@@ -4,9 +4,11 @@
 #define KV_START ('?')
 #define COOKIE_NAME "poolcode"
 #define NL "\r\n"
-#define RAND_LENGTH (16)
 #define QUERY_COUNT (32)
-#define COOKIE_LEN (64)
+#define NONCE_LEN (12)
+#define TOWEL_ID_LEN (14)
+#define TOWEL_TOKEN_LEN (10)
+#define COOKIE_LEN (20)
 
 #define STORAGE_DIR "../../data/"
 #define COOKIE_DIR STORAGE_DIR "cookies/"
@@ -389,7 +391,7 @@ char *escape(char *replace, char *str) {
   int len = strlen(str);
   int written = 0;
   /* all the right values for all the wrong reasons */
-  int   replace_len = ((strlen(replace) + 2));
+  int   replace_len = ((strlen(replace) + 4));
   char *ret = calloc(1, len * replace_len);
   /* LOG("len %d, replen %d, rep %s, str %s, ptr %p\n", len, replace_len,
    * replace, str, ret); */
@@ -860,7 +862,7 @@ int init_state(request_method, current_cookie, query_string) {
 
   }
 
-  state->nonce = rand_str(16);
+  state->nonce = rand_str(NONCE_LEN);
 
   maybe_prune(state, COOKIE_DIR);
   maybe_prune(state, USER_DIR);
@@ -1421,8 +1423,8 @@ int handle_reserve(state_t *state) {
 
   char *csrf = "";
 
-  char *towel_id = rand_str(16);
-  char *towel_token = rand_str(10);
+  char *towel_id = rand_str(TOWEL_ID_LEN);
+  char *towel_token = rand_str(TOWEL_TOKEN_LEN);
   char *color = get_val(state, "color");
 
   char towel_space[1036];
@@ -1487,11 +1489,11 @@ int handle_reserve(state_t *state) {
 
 int handle_dispense(state_t *state) {
 
-  char *towel_id = rand_str(16);
+  char *towel_id = rand_str(TOWEL_ID_LEN);
   char *towel_token = "";
   char *color = "";
 
-  char *towel_id_enc = enc_towel_id(towel_id);
+  char *towel_id_enc = "";
   char *own_towels = render_own_towels(state);
   char *towels = render_all_towels(state);
 

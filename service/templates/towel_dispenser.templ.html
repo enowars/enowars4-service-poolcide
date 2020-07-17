@@ -40,6 +40,7 @@ TEMPLATE(
         </div>
     </div>
 
+    <div id=towelid>
     <p>Also, the towel_id for our towel admin team is </p>
     <div>
         <code>{{towel_id_enc%s}}</code>
@@ -47,6 +48,7 @@ TEMPLATE(
     <p> today.</p>
     <code id="chosencolor">{{color%s}}</code>
     <p>BTW.: please make sure you dont't run poolcide too far away from a pool (for example behind a http proxy)</p>
+    </div>
     <a href=/>HOME</a>
 
 <script nonce={{state->nonce%s}}>
@@ -57,6 +59,9 @@ TEMPLATE(
     }
     chosencolor.innerHTML = ""
 
+    if (!{{towel_id[0]%d}}) {
+        towelid.innerHTML = ""
+    }
     if (!{{own_towels[0]%d}}) {
         owntowels.innerHTML = ""
     }
