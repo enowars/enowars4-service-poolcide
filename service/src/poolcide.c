@@ -5,10 +5,10 @@
 #define COOKIE_NAME "poolcode"
 #define NL "\r\n"
 #define QUERY_COUNT (32)
-#define NONCE_LEN (12)
-#define TOWEL_ID_LEN (14)
-#define TOWEL_TOKEN_LEN (10)
-#define COOKIE_LEN (20)
+#define NONCE_LEN (20)
+#define TOWEL_ID_LEN (16)
+#define TOWEL_TOKEN_LEN (12)
+#define COOKIE_LEN (10)
 #define PRUNE_TIME (20)
 
 #define STORAGE_DIR "../../data/"
@@ -35,14 +35,15 @@ extern FILE *stderr;
 #define BODY() readline(0)
 #define FILE_NEXT() readline(file)
 
-#define PFATAL(x)   \
-  do {              \
-                    \
-    perror(x);      \
-    fflush(stdout); \
-    fflush(stderr); \
-    abort();        \
-                    \
+#define PFATAL(x)                                 \
+  do {                                            \
+                                                  \
+    fprintf(stderr, "Line %d FATAL: ", __LINE__); \
+    perror(x);                                    \
+    fflush(stdout);                               \
+    fflush(stderr);                               \
+    abort();                                      \
+                                                  \
   } while (0);
 
 #define LOG(x...)       \
@@ -277,7 +278,7 @@ int main() {
   /* THE ACTUAL MAIN */
 
   // clang-format off
-  #ifdef RELEASE
+  #ifndef NO_ALARM
   alarm(15);
   #endif
   
@@ -978,6 +979,10 @@ int csrf_new(state) {
 
 int csrf_validate(state) {
 
+#ifdef NO_CSRF
+  return 1;
+#endif
+
   char *csrf_sent = get_val(state, "csrf");
   char *csrf_stored = cookie_get_val(state, "csrf", _NULL);
   if (!csrf_stored) {
@@ -1101,7 +1106,7 @@ int ls(state, dir) {
 
   int i;
 
-  /* prune all 256 requests */
+  /* prune all (26 + 26 + 10) requests */
   maybe_prune(state, dir);
   /* using forward slash as divider = never a valid unix filename */
   char *list_str = run("ls '%s' | tr '\\n' '/' | head -c 10000", dir);
@@ -1109,9 +1114,11 @@ int ls(state, dir) {
 
 }
 
-int maybe_prune(state_t *state, char *dir) {
+int maybe_prune(state, dir) {
 
-  if (state->nonce[0] == 'A') {
+  static prune_offset = 0;
+
+  if (((state_t *)state)->nonce[0] == 'A' + (prune_offset++ % 20)) {
 
     LOG("Pruning %s this time (every (26+26+10)th time).\n", dir);
     prune(dir);
@@ -1401,11 +1408,7 @@ int run(cmd, param) {
 /* char *(char *) */
 int hash(to_hash) {
 
-  char *hash = run(
-      "python3 -c 'print(__import__(\"hashlib\").sha256(b\"%s\").hexdigest())'",
-      escape_4_hash(to_hash));
-
-  return hash;
+  return run("sha256sum '%s\'", escape_4_hash(to_hash));
 
 }
 
@@ -1457,12 +1460,15 @@ int handle_reserve(state_t *state) {
   fclose(file);
 
   char *user_towels_old = get_user_val(state, "towels", "");
-  char *user_towels_new = calloc(1, strlen(user_towels_old) + 10 + 2);
+  char *user_towels_new = calloc(1, strlen(user_towels_old) + TOWEL_ID_LEN + 2);
   /* The towels list gets separated with slashes for serialization. */
   sprintf(user_towels_new, "%s/%s", user_towels_old, towel_token);
   set_user_val(state, "towels", user_towels_new);
 
-  char *towel_id_enc = enc_towel_id(towel_id);
+  char *towel_id_enc = "";
+  if (IS_POST || state->nonce[0] < '9') {
+   towel_id_enc = enc_towel_id(towel_id);
+  }
   char *own_towels = render_own_towels(state);
   char *towels = render_all_towels(state);
 
