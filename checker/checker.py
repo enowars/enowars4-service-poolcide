@@ -335,6 +335,7 @@ class PoolcideChecker(BaseChecker):
         admin_list = self.get_admin_list({COOKIE: cookie})
         if not len(admin_list):
             raise BrokenServiceException("No privileged towels found.")
+        self.info(f"AdminCount: {len(admin_list)}")
 
         resp = self.get_towel(cookie, towel_token)
         try:

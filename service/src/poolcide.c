@@ -9,7 +9,7 @@
 #define TOWEL_ID_LEN (16)
 #define TOWEL_TOKEN_LEN (8)
 #define COOKIE_LEN (10)
-#define PRUNE_TIME "20"
+#define PRUNE_TIME "15"
 
 #define STORAGE_DIR "../../data/"
 #define COOKIE_DIR STORAGE_DIR "cookies/"
@@ -1165,7 +1165,7 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
   int   retpos = 0;
 
 #define CURRENT_TOWEL (((char **)towel_list)[i])
-  for (i = 0; CURRENT_TOWEL && i < 1024; i++) {
+  for (i = 0; CURRENT_TOWEL; i++) {
 
     int   k;
     int   priority_towel = 0;
