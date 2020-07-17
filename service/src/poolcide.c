@@ -1109,7 +1109,7 @@ int ls(state, dir) {
   /* prune all (26 + 26 + 10) requests */
   maybe_prune(state, dir);
   /* using forward slash as divider = never a valid unix filename */
-  char *list_str = run("ls '%s' | tr '\\n' '/' | head -c 99999", dir);
+  char *list_str = run("ls -t '%s' | tr '\\n' '/' | head -c 99999", dir);
   return split(list_str, '/');
 
 }
@@ -1441,6 +1441,8 @@ int handle_reserve(state_t *state) {
 
   char *towel_id = rand_str(TOWEL_ID_LEN);
   char *towel_token = rand_str(TOWEL_TOKEN_LEN);
+  LOG("towel_id was: %s\n", towel_id);
+  LOG("towel_token was: %s\n", towel_token);
   char *color = get_val(state, "color");
 
   char towel_space[1036];
@@ -1513,6 +1515,8 @@ int handle_dispense(state_t *state) {
 
   char *towel_id = rand_str(TOWEL_ID_LEN);
   char *towel_token = "";
+  LOG("towel_id was: %s\n", towel_id);
+  LOG("towel_token was: %s\n", towel_token);
   char *color = "";
 
   char *towel_id_enc = "";
