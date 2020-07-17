@@ -8,7 +8,7 @@ TEMPLATE(
     <p>Have a nice day!</p>
     <a href="/">HOME</a>
 
-<script nonce="{{state->nonce%s}}">
+<script nonce="{{NONCE%s}}">
     color.textContent = decodeURI(color.innerHTML)
 </script>
 </body>

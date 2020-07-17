@@ -35,6 +35,10 @@ extern FILE *stderr;
 #define BODY() readline(0)
 #define FILE_NEXT() readline(file)
 
+#define COOKIE_LOC (((state_t *)state)->cookie_loc)
+#define USER_LOC (((state_t *)state)->user_loc)
+#define NONCE (((state_t *)state)->nonce)
+
 #define PFATAL(x)                                 \
   do {                                            \
                                                   \
@@ -46,9 +50,11 @@ extern FILE *stderr;
                                                   \
   } while (0);
 
+static runid;
 #define LOG(x...)       \
   do {                  \
                         \
+    fprintf(stderr, "run %d: ", runid); \
     fprintf(stderr, x); \
     fflush(stderr);     \
                         \
@@ -141,6 +147,7 @@ typedef struct state {
 
 /* Sane code STARTS with main. Why would anybody read from bottom to top? */
 int main() {
+  runid = *((int *)rand_str(4));
 
 /* run tests using
    make CFLAGS='-DTEST_RAND'
@@ -405,12 +412,12 @@ char *escape(char *replace, char *str) {
    * replace, str, ret); */
   for (i = 0; i < len; i++) {
 
-    /*LOG("%d %c %s", written, str[i], ret);*/
+    /* LOG("%d %c %s", written, str[i], ret); */
     written += sprintf(ret + written, replace, (unsigned char)str[i]);
 
   }
 
-  LOG("\n");
+  /* LOG("\n"); */
 
   return ret;
 
@@ -738,7 +745,7 @@ int write_headers(state_t *state) {
 
       "Cache-Control: no-store" NL "Set-Cookie: " COOKIE_NAME
       "=%s; HttpOnly" NL NL,
-      state->nonce, state->nonce, state->cookie);
+      NONCE, NONCE, ((state_t *)state)->cookie);
   return 0;
 
 }
@@ -1208,15 +1215,15 @@ int render_towel_template(state, towel_list, highlight_priority_towels) {
 
 }
 
-int cookie_get_val(state_t *state, char *key, char *default_val) {
+int cookie_get_val(state, key, default_val) {
 
-  return file_get_val(state->cookie_loc, key, default_val);
+  return file_get_val(COOKIE_LOC, key, default_val);
 
 }
 
-void cookie_set_val(state_t *state, char *key, char *val) {
+int cookie_set_val(state, key, val) {
 
-  file_set_val(state->cookie_loc, key, val);
+  file_set_val(COOKIE_LOC, key, val);
 
 }
 
@@ -1291,16 +1298,16 @@ invalid_username:
 }
 
 /* char * */
-int get_user_val(state_t *state, char *key, char *default_val) {
+int get_user_val(state, key, default_val) {
 
-  return file_get_val(state->user_loc, key, default_val);
+  return file_get_val(USER_LOC, key, default_val);
 
 }
 
 /* char * */
-int set_user_val(state_t *state, char *key, char *val) {
+int set_user_val(state, key, val) {
 
-  return file_set_val(state->user_loc, key, val);
+  return file_set_val(USER_LOC, key, val);
 
 }
 
@@ -1512,7 +1519,7 @@ int handle_reserve(state_t *state) {
 
 }
 
-int handle_dispense(state_t *state) {
+int handle_dispense(state) {
 
   char *towel_id = rand_str(TOWEL_ID_LEN);
   char *towel_token = "";
@@ -1523,6 +1530,7 @@ int handle_dispense(state_t *state) {
   char *towel_id_enc = "";
   char *own_towels = render_own_towels(state);
   char *towels = render_all_towels(state);
+  if (!towels) { towels = ""; }
 
   char *csrf = csrf_new(state);
 

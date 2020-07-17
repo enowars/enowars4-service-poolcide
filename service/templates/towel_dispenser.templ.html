@@ -51,7 +51,7 @@ TEMPLATE(
     </div>
     <a href=/>HOME</a>
 
-<script nonce={{state->nonce%s}}>
+<script nonce={{NONCE%s}}>
     if ("{{towel_token%s}}") {
         token.innerHTML = `<p>Your towel with the ID {{towel_token%s}} and color ${decodeURI(chosencolor.innerHTML)} got reserved.</p>
         <a href="poolcide/?route=dispense">RESERVE ADDITIONAL TOWELS</a>
@@ -59,10 +59,10 @@ TEMPLATE(
     }
     chosencolor.innerHTML = ""
 
-    if (!{{towel_id_enc[0]%d}}) {
+    if ({{(!towel_id_enc[0])%d}}) {
         towelid.innerHTML = ""
     }
-    if (!{{own_towels[0]%d}}) {
+    if ({{(!own_towels[0])%d}}) {
         owntowels.innerHTML = ""
     }
 </script>

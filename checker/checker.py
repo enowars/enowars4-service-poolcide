@@ -191,6 +191,9 @@ class PoolcideChecker(BaseChecker):
             content = t.read_until("</body>")
             content = content.decode()[:-1]
 
+            if not as_admin:
+                return
+
             try:
                 self.debug(f"reserve page content is ...{content[-40:]}")
                 towel_id = content.split("ID ")[1].split(" and")[0]
@@ -201,8 +204,6 @@ class PoolcideChecker(BaseChecker):
                 self.warning("Towel ID Failed with request {content}: {ex}")
                 raise BrokenServiceException("Could not get Towel ID")
 
-            if not as_admin:
-                return
             age_begin = "-----BEGIN AGE ENCRYPTED FILE-----"
             age_end = "-----END AGE ENCRYPTED FILE-----"
             age_line_len = 64
