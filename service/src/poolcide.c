@@ -1593,7 +1593,7 @@ int get_towel_color(towel) {
   char  towelpath[1036];
   char *color = calloc(1, 4096);
   sprintf(towelpath, TOWEL_DIR "%s", towel);
-  LOG("Reading color from towel at %s\n");
+  LOG("Reading color from towel at %s\n", towel);
   FILE *file = fopen(towelpath, "r");
   fread(color, 1, 4096, file);
   fclose(file);
