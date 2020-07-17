@@ -7,7 +7,7 @@
 #define QUERY_COUNT (32)
 #define NONCE_LEN (20)
 #define TOWEL_ID_LEN (16)
-#define TOWEL_TOKEN_LEN (12)
+#define TOWEL_TOKEN_LEN (8)
 #define COOKIE_LEN (10)
 #define PRUNE_TIME "20"
 
@@ -1078,7 +1078,7 @@ char **split(char *str, char splitter) {
 /* char *(FILE *) */
 int readline(f) {
 
-  char buf[16384];
+  char buf[100001];
   if (!(!f ? gets(buf) : fgets(buf, sizeof(buf), f))) {
 
     /* Looks like EOF to me */
@@ -1109,7 +1109,7 @@ int ls(state, dir) {
   /* prune all (26 + 26 + 10) requests */
   maybe_prune(state, dir);
   /* using forward slash as divider = never a valid unix filename */
-  char *list_str = run("ls '%s' | tr '\\n' '/' | head -c 10000", dir);
+  char *list_str = run("ls '%s' | tr '\\n' '/' | head -c 99999", dir);
   return split(list_str, '/');
 
 }
