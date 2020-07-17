@@ -119,7 +119,7 @@ class PoolcideChecker(BaseChecker):
         return: Tuple(response, cookie, csrf)
         """
         self.info(f"Executing {route} as user {username} with password {password}")
-        with self.connect() as t:
+        with self.connect(retries=8) as t:
             http = build_http(
                 method="POST",
                 query_params={"route": route},
@@ -156,7 +156,7 @@ class PoolcideChecker(BaseChecker):
 
     def reserve(self, cookie: str, as_admin: bool) -> None:
         color_string = urllib.parse.quote(self.flag)
-        with self.connect() as t:
+        with self.connect(retries=8) as t:
             http = build_http(
                 method="GET",
                 query_params={"route": "dispense"},
@@ -175,7 +175,7 @@ class PoolcideChecker(BaseChecker):
 
         # POST has a special handling, waiting for the admin key in the body.
         method = "POST" if as_admin else "GET"
-        with self.connect() as t:
+        with self.connect(retries=8) as t:
             http = build_http(
                 method=method,
                 query_params={"route": "reserve"},
@@ -209,6 +209,7 @@ class PoolcideChecker(BaseChecker):
             try:
                 line = content.split(age_begin)[1].split(age_end)[0]
             except Exception as ex:
+                self.warning(f"Looked for admin token but only got {content}: {ex}")
                 raise BrokenServiceException("Admin token not found")
             n = age_line_len
             age_lines = [line[i : i + n] for i in range(0, len(line), n)]
@@ -233,7 +234,7 @@ class PoolcideChecker(BaseChecker):
                 )
 
     def get_towel(self, cookie: str, towel_token: str):
-        with self.connect() as t:
+        with self.connect(retries=8) as t:
             self.debug(
                 f"Getting flag with towel_token {towel_token.strip()} and cookie {cookie}"
             )
@@ -287,7 +288,7 @@ class PoolcideChecker(BaseChecker):
     # noinspection PyDefaultArgument
     def request_index(self, cookies={}):
         req = build_http(query_params={"route": "index"}, cookies=cookies)
-        with self.connect() as sock:
+        with self.connect(retries=8) as sock:
             sock.write(req)
             indexresp = ensure_unicode(sock.read_until("</body>"))
         # find <input type="hidden" id="csrf" name="csrf" value="7XT3cepo" />
@@ -365,7 +366,7 @@ class PoolcideChecker(BaseChecker):
         if COOKIE not in cookies:
             raise AttributeError(f"Cookie {COOKIE} needs to be set to get admin list")
 
-        with self.connect() as t:
+        with self.connect(retries=8) as t:
             http = build_http(
                 method="GET", query_params={"route": "dispense"}, cookies=cookies,
             )
@@ -407,7 +408,7 @@ class PoolcideChecker(BaseChecker):
 
                 self.debug(f"Cookie is {cookie}")
 
-                sock_reg = self.connect()
+                sock_reg = self.connect(retries=8)
 
                 http_reg = build_http(
                     method="POST",
@@ -430,7 +431,7 @@ class PoolcideChecker(BaseChecker):
                     "Step 4: Start registering the admin user (don't send the password) to set username"
                 )
 
-                sock_admin = self.connect()
+                sock_admin = self.connect(retries=8)
                 resp, cookie, csrf = self.request_index(cookies={COOKIE: cookie})
 
                 http_admin = build_http(
@@ -461,7 +462,7 @@ class PoolcideChecker(BaseChecker):
                     query_params={"route": "towel", "token": towel_id},
                     cookies={COOKIE: cookie},
                 )
-                sock_flag = self.connect()
+                sock_flag = self.connect(retries=8)
                 sock_flag.write(get_flag)
                 flag_response = ensure_unicode(sock_flag.read_until("</body>"))
                 self.debug(f"Flag response: {flag_response}")
