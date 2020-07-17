@@ -9,7 +9,7 @@
 #define TOWEL_ID_LEN (16)
 #define TOWEL_TOKEN_LEN (12)
 #define COOKIE_LEN (10)
-#define PRUNE_TIME (20)
+#define PRUNE_TIME "20"
 
 #define STORAGE_DIR "../../data/"
 #define COOKIE_DIR STORAGE_DIR "cookies/"
@@ -1129,9 +1129,9 @@ int maybe_prune(state, dir) {
 
 int prune(dir) {
 
-  LOG("Pruning all files in %s older than %d minutes\n", dir, PRUNE_TIME);
+  LOG("Pruning all files in %s older than "PRUNE_TIME" minutes\n", dir);
   /* mmin -> motification time, amin -> access time */
-  LOG(run("find '%s' -mmin +%d -type f -delete", dir, PRUNE_TIME));
+  LOG(run("find '%s' -mmin +"PRUNE_TIME" -type f -delete", dir));
 
 }
 

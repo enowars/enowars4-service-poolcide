@@ -162,7 +162,7 @@ class PoolcideChecker(BaseChecker):
                 query_params={"route": "dispense"},
                 cookies={COOKIE: cookie},
             )
-            self.debug(f"request for dispense: {http}")
+            self.debug(f"request for dispense: ...{http[-40:]}")
             t.write(http)
             resp = ensure_unicode(t.read_all())
             self.debug(f"response for dispense was {resp[40:]}...{resp[-40:]}")
