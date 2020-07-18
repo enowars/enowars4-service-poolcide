@@ -184,8 +184,8 @@ class PoolcideChecker(BaseChecker):
             )
             t.write(http)
             stuff = t.read_until("<code>")
-            if b"admin" not in stuff:
-                self.warning(f"Expected to find 'admin' in '{stuff}'")
+            if b"towel questionnaire" not in stuff:
+                self.warning(f"Expected to find 'towel questionnaire' in '{stuff}'")
                 raise BrokenServiceException(f"No valid answer from reserve {method}")
 
             content = t.read_until("</body>")
