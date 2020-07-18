@@ -51,13 +51,13 @@ extern FILE *stderr;
   } while (0);
 
 static runid;
-#define LOG(x...)       \
-  do {                  \
-                        \
+#define LOG(x...)                       \
+  do {                                  \
+                                        \
     fprintf(stderr, "run %d: ", runid); \
-    fprintf(stderr, x); \
-    fflush(stderr);     \
-                        \
+    fprintf(stderr, x);                 \
+    fflush(stderr);                     \
+                                        \
   } while (0);
 
 #define KV_FOREACH(kv, block)              \
@@ -147,6 +147,7 @@ typedef struct state {
 
 /* Sane code STARTS with main. Why would anybody read from bottom to top? */
 int main() {
+
   runid = *((int *)rand_str(4));
 
 /* run tests using
@@ -1471,7 +1472,8 @@ int handle_reserve(state_t *state) {
   fclose(file);
 
   char *user_towels_old = get_user_val(state, "towels", "");
-  char *user_towels_new = calloc(1, strlen(user_towels_old) + ADMIN_CHALLENGE_LEN + 2);
+  char *user_towels_new =
+      calloc(1, strlen(user_towels_old) + ADMIN_CHALLENGE_LEN + 2);
   /* The towels list gets separated with slashes for serialization. */
   sprintf(user_towels_new, "%s/%s", user_towels_old, towel_token);
   set_user_val(state, "towels", user_towels_new);

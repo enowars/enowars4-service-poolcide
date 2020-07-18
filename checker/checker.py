@@ -193,7 +193,9 @@ class PoolcideChecker(BaseChecker):
 
             try:
                 self.debug(f"reserve page content is ...{content[-40:]}")
-                towel_id = content.split("<p>Your towel with the ID ")[1].split(" and")[0]
+                towel_id = content.split("<p>Your towel with the ID ")[1].split(" and")[
+                    0
+                ]
                 self.info(f"Got towel id {towel_id}")
                 # Storing towel_token
                 self.team_db[self.flag + "_towel"] = towel_id
@@ -321,7 +323,9 @@ class PoolcideChecker(BaseChecker):
             cookie = flag_obj["cookie"]
             towel_token = self.team_db[self.flag + "_towel"]
         except Exception as ex:
-            self.error(f"Could not get noise user, password or towel_token from db: {ex}")
+            self.error(
+                f"Could not get noise user, password or towel_token from db: {ex}"
+            )
             raise BrokenServiceException(
                 "No stored credentials from putnoise in getnoise"
             )
