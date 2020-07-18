@@ -73,7 +73,7 @@ def build_http(
 
     shuffled_cookies = list(cookies.keys())
     if len(shuffled_cookies):
-        random.shuffle(cookies)
+        random.shuffle(shuffled_cookies)
         cookie_str = "Cookie: " + ";".join([f"{x}={cookies[x]}" for x in cookies])
     else:
         cookie_str = ""
