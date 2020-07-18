@@ -96,7 +96,7 @@ class PoolcideChecker(BaseChecker):
         return "".join(secrets.choice(string.ascii_letters) for x in range(len))
 
     def random_user(self) -> str:
-        return secrets.choice(users) + hex(secrets.randbelow(256))[2:]
+        return secrets.choice(users) + hex(secrets.randbelow(12000))[2:]
 
     def random_password(self) -> str:
         return self.random_string(16)
