@@ -5,13 +5,15 @@ Welcome to the pool.
 ## Public Challenge Description.
 
 Welcome to the pool.
+
 Chill close to the waterfront after reserving your spot with your towel.
-Our fine admins all have the same towel color, but you are not allowed to see it.
+Our fine admins all have the same towel color, but of you will never see it.
 
 ## Secret Design Specification.
 
 Poolcide is a web challenge that breaks the HTTP protocol a bit to facilitate a race condition.
 It's written in C and players get the (obscure gcc89) source code.
+With C preprocessor as templating language, etc.
 As the service uses ASAN and FORTIFY_SOURCE, it does not provide an RCE, _even though_ it has a range of buffer overflows and even uses `gets` to read network input.
 
 The service was originally designed for A/D, but works equally well as easy Jeopardy challenge.
@@ -23,7 +25,7 @@ To drop the flag, the checker uses an `age` private key over a normal socket aft
 The attacker also needs to understand and exploit this fact.
 
 The hope here is that players learn about old-skool C, CGI, and logic flaws, even though their first instinct wants to PWN.
-Oh and there is a range of fun red herings and memes in this.
+Oh and it supports modern web security mechanisms, such as CRSF tokens and CSP nonces, plus there is a range of fun red herings and memes in this.
 
 ## Full Solution Explanation.
 
