@@ -1,0 +1,20 @@
+version: '3'
+services:
+  poolcide:
+    build:
+        context: service
+        dockerfile: Dockerfile
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
+    ports:
+      - 9001:9001
+  jeopardy:
+    build:
+        context: checker
+        dockerfile: Dockerfile.jeopardy
+    environment: 
+        - "FLAG=CTF{C-ing-1s-b3li3ving!}"
+    depends_on: 
+        - poolcide
+

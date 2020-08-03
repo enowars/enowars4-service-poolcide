@@ -848,7 +848,6 @@ solarpower
 antifa
 ctf
 FAUST
-FluxFingers
 saarsec
 stt
 legofan

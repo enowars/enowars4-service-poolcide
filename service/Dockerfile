@@ -16,7 +16,10 @@ RUN wget https://github.com/FiloSottile/age/releases/download/v1.0.0-beta2/age-v
 COPY . /poolcide
 WORKDIR /poolcide
 
-RUN rm -rf ./age && mv /tmp/age . && chmod 777 ./age
+# Pack it up for maximum open-sourceness
+RUN tar -cvf poolsource.tar.gz ./*
+
+RUN mv /tmp/age . && chmod 777 ./age
 
 # building poolcide
 RUN make clean
